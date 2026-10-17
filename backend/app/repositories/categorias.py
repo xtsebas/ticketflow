@@ -1,9 +1,13 @@
 from uuid import UUID
 
+from app.db.client import get_client
+
 
 def listar() -> list[dict]:
-    raise NotImplementedError
+    respuesta = get_client().table("categorias").select("*").order("tipo").order("nombre").execute()
+    return respuesta.data
 
 
 def obtener(categoria_id: UUID) -> dict | None:
-    raise NotImplementedError
+    respuesta = get_client().table("categorias").select("*").eq("id", str(categoria_id)).limit(1).execute()
+    return respuesta.data[0] if respuesta.data else None

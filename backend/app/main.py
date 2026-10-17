@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import categorias, comentarios, estadisticas, health, tickets
 from app.core.config import get_settings
+from app.core.errors import registrar_manejadores
 
 settings = get_settings()
 
 app = FastAPI(title="TicketFlow Service Desk")
+registrar_manejadores(app)
 
 app.add_middleware(
     CORSMiddleware,
