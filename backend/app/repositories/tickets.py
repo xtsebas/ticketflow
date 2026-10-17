@@ -42,4 +42,5 @@ def obtener(ticket_id: UUID) -> dict | None:
 
 
 def actualizar(ticket_id: UUID, cambios: dict) -> dict | None:
-    raise NotImplementedError
+    respuesta = get_client().table("tickets").update(cambios).eq("id", str(ticket_id)).execute()
+    return respuesta.data[0] if respuesta.data else None

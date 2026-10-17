@@ -12,6 +12,31 @@ class RecursoNoEncontrado(Exception):
     pass
 
 
+class TransicionInvalida(Exception):
+    pass
+
+
+TRANSICIONES_ESTADO = {
+    Estado.abierto: {Estado.en_progreso},
+    Estado.en_progreso: {Estado.resuelto},
+    Estado.resuelto: {Estado.cerrado, Estado.en_progreso},
+    Estado.cerrado: set(),
+}
+
+
+def _texto_escalamiento(ticket: dict, cambios: dict, motivo: str | None) -> str | None:
+    partes = []
+    if "nivel" in cambios and cambios["nivel"] != ticket["nivel"]:
+        partes.append(f"{ticket['nivel']} a {cambios['nivel']}")
+    nuevo = cambios.get("escalamiento_jerarquico")
+    if "escalamiento_jerarquico" in cambios and nuevo != ticket["escalamiento_jerarquico"]:
+        partes.append(f"jerarquico {ticket['escalamiento_jerarquico'] or 'ninguno'} a {nuevo}")
+    if not partes:
+        return None
+    texto = f"Escalamiento: {', '.join(partes)}."
+    return f"{texto} Motivo: {motivo}" if motivo else texto
+
+
 def crear_ticket(datos: TicketCreate) -> dict:
     if repo_categorias.obtener(datos.categoria_id) is None:
         raise RecursoNoEncontrado("Categoria no encontrada")
@@ -43,8 +68,25 @@ def obtener_ticket(ticket_id: UUID, rol: AutorRol = AutorRol.solicitante) -> dic
     return ticket
 
 
-def actualizar_ticket(ticket_id: UUID, cambios: TicketUpdate) -> dict:
-    raise NotImplementedError
+def actualizar_ticket(ticket_id: UUID, datos: TicketUpdate) -> dict:
+    ticket = repo_tickets.obtener(ticket_id)
+    if ticket is None:
+        raise RecursoNoEncontrado("Ticket no encontrado")
+    cambios = datos.campos_actualizables()
+    if "estado" in cambios:
+        actual, nuevo = Estado(ticket["estado"]), Estado(cambios["estado"])
+        if nuevo not in TRANSICIONES_ESTADO[actual]:
+            raise TransicionInvalida(f"Transicion de estado no permitida: {actual.value} a {nuevo.value}")
+    if "categoria_id" in cambios and repo_categorias.obtener(cambios["categoria_id"]) is None:
+        raise RecursoNoEncontrado("Categoria no encontrada")
+    actualizado = repo_tickets.actualizar(ticket_id, cambios)
+    texto = _texto_escalamiento(ticket, cambios, datos.motivo)
+    if texto:
+        repo_comentarios.crear(
+            ticket_id,
+            {"autor": "sistema", "autor_rol": AutorRol.agente.value, "contenido": texto, "interno": True},
+        )
+    return actualizado
 
 
 def agregar_comentario(ticket_id: UUID, datos: ComentarioCreate) -> dict:

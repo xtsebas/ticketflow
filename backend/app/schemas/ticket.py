@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.domain.enums import (
     EscalamientoJerarquico,
@@ -32,6 +32,17 @@ class TicketUpdate(BaseModel):
     tags: list[str] | None = None
     nivel: Nivel | None = None
     escalamiento_jerarquico: EscalamientoJerarquico | None = None
+    motivo: str | None = None
+
+    @model_validator(mode="after")
+    def requiere_algun_campo(self):
+        if not self.campos_actualizables():
+            raise ValueError("el cuerpo debe incluir al menos un campo actualizable")
+        return self
+
+    def campos_actualizables(self) -> dict:
+        """Campos enviados que se guardan en tickets (excluye motivo)."""
+        return self.model_dump(mode="json", exclude={"motivo"}, exclude_none=True)
 
 
 class TicketOut(BaseModel):

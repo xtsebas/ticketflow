@@ -38,4 +38,9 @@ def obtener_ticket(ticket_id: UUID, rol: AutorRol = AutorRol.solicitante):
 
 @router.patch("/{ticket_id}", response_model=TicketOut)
 def actualizar_ticket(ticket_id: UUID, cambios: TicketUpdate):
-    raise HTTPException(status_code=501, detail="Not Implemented")
+    try:
+        return servicio.actualizar_ticket(ticket_id, cambios)
+    except servicio.RecursoNoEncontrado as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except servicio.TransicionInvalida as error:
+        raise HTTPException(status_code=409, detail=str(error))

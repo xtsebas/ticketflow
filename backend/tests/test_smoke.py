@@ -44,7 +44,6 @@ def test_openapi_lista_endpoints():
 @pytest.mark.parametrize(
     "metodo,ruta,cuerpo",
     [
-        ("patch", f"/tickets/{UUID_EJEMPLO}", {"estado": "cerrado"}),
         ("get", "/estadisticas", None),
     ],
 )
