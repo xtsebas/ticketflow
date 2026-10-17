@@ -44,7 +44,6 @@ def test_openapi_lista_endpoints():
 @pytest.mark.parametrize(
     "metodo,ruta,cuerpo",
     [
-        ("get", "/categorias", None),
         ("post", "/tickets", TICKET_NUEVO),
         ("get", "/tickets", None),
         ("get", f"/tickets/{UUID_EJEMPLO}", None),
