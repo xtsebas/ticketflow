@@ -48,7 +48,9 @@ def actualizar_ticket(ticket_id: UUID, cambios: TicketUpdate) -> dict:
 
 
 def agregar_comentario(ticket_id: UUID, datos: ComentarioCreate) -> dict:
-    raise NotImplementedError
+    if repo_tickets.obtener(ticket_id) is None:
+        raise RecursoNoEncontrado("Ticket no encontrado")
+    return repo_comentarios.crear(ticket_id, datos.model_dump(mode="json"))
 
 
 def obtener_estadisticas() -> dict:

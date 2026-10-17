@@ -45,7 +45,6 @@ def test_openapi_lista_endpoints():
     "metodo,ruta,cuerpo",
     [
         ("patch", f"/tickets/{UUID_EJEMPLO}", {"estado": "cerrado"}),
-        ("post", f"/tickets/{UUID_EJEMPLO}/comentarios", COMENTARIO_NUEVO),
         ("get", "/estadisticas", None),
     ],
 )
