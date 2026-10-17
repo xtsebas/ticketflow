@@ -4,7 +4,7 @@ Service Desk de TicketFlow (plataforma de venta de entradas en línea) para el c
 
 Monorepo:
 
-- `backend/`: API en FastAPI con Supabase (Postgres). Tickets, comentarios, categorías y estadísticas implementados. Pendiente: el cálculo de prioridad y vencimientos SLA (`services/prioridad.py` y `services/sla.py`), por lo que los tickets nuevos nacen con prioridad y vencimientos en `null`.
+- `backend/`: API en FastAPI con Supabase (Postgres). Tickets, comentarios, categorías, estadísticas, cálculo de prioridad y vencimientos SLA.
 - `frontend/`: pendiente.
 
 ## Entorno virtual
@@ -60,6 +60,15 @@ pytest
 
 No requieren Supabase ni `.env`: usan repositorios simulados.
 
+Prueba de humo contra el Supabase real (única excepción; requiere `.env` con credenciales):
+
+```
+cd backend
+python scripts/smoke_real.py
+```
+
+Crea tickets con solicitante `smoke_*`, verifica los endpoints y los borra al final. Sale con código distinto de cero si alguna verificación falla.
+
 ## Datos de demostración
 
 ```
@@ -108,15 +117,93 @@ curl -X POST localhost:8000/tickets/$TICKET_ID/comentarios -H 'Content-Type: app
 curl localhost:8000/estadisticas
 ```
 
-### Errores
+## Contrato para el frontend
 
-Todos los errores tienen el formato `{"detalle": ..., "codigo": ...}`:
+Base: `http://localhost:8000`. Cuerpos y respuestas en JSON.
 
-| Estado | `codigo` | Cuándo |
+### Detalle del ticket y parámetro `rol`
+
+`GET /tickets/{ticket_id}?rol=solicitante|agente` (por defecto `solicitante`).
+
+- `solicitante`: oculta los comentarios con `interno: true`.
+- `agente`: devuelve todos los comentarios.
+- Los comentarios vienen ordenados por `creado_en` ascendente y el ticket incluye `categoria` completa (`nombre` y `tipo`).
+- Un valor de `rol` distinto responde 422.
+
+### PATCH y campo `motivo`
+
+`PATCH /tickets/{ticket_id}` acepta `estado`, `prioridad`, `categoria_id`, `tags`, `nivel`, `escalamiento_jerarquico` y `motivo`. Solo se actualizan los campos enviados; un campo en `null` se trata como no enviado.
+
+- `motivo` es opcional y no se guarda en el ticket: solo acompaña el comentario automático.
+- Si cambia `nivel` o `escalamiento_jerarquico`, el backend crea un comentario interno (autor `sistema`, `autor_rol` `agente`) con el texto `Escalamiento: N1 a N3. Motivo: ...` (sin la parte del motivo si no se envía).
+- Si cambia `prioridad`, los vencimientos se recalculan a partir de `creado_en`.
+- Un cuerpo sin ningún campo actualizable (por ejemplo solo `motivo`) responde 422.
+- Transiciones de estado permitidas: `abierto` a `en_progreso`, `en_progreso` a `resuelto`, `resuelto` a `cerrado` y `resuelto` a `en_progreso` (reapertura). `cerrado` es final. Cualquier otra, incluida la repetición del mismo estado, responde 409.
+
+### Formato de errores
+
+Todos los errores tienen la forma `{"detalle": ..., "codigo": ...}`.
+
+| Estado | `codigo` | Cuándo ocurre |
 | --- | --- | --- |
-| 404 | `no_encontrado` | Ticket o categoría inexistente |
-| 409 | `conflicto` | Transición de estado no permitida (abierto → en_progreso → resuelto → cerrado; resuelto → en_progreso reabre) |
-| 422 | `validacion_error` | Valor fuera de catálogo, cuerpo inválido o comentario interno de un solicitante. `detalle` es una lista de `{campo, mensaje, tipo}` |
+| 201 | (sin error) | `POST /tickets` y `POST /tickets/{id}/comentarios` crean el recurso y lo devuelven |
+| 404 | `no_encontrado` | El ticket o la categoría no existen, o la ruta no existe. `detalle` es un texto |
+| 409 | `conflicto` | Transición de estado no permitida. `detalle` es un texto, p. ej. `Transicion de estado no permitida: abierto a cerrado` |
+| 422 | `validacion_error` | Valor fuera de catálogo, UUID mal formado, cuerpo vacío en PATCH, contenido vacío o comentario interno de un solicitante. `detalle` es una lista de `{campo, mensaje, tipo}` |
+
+También usan este formato el 405 (`metodo_no_permitido`) y el 500 (`error_interno`).
+
+### Filtros de `GET /tickets`
+
+Todos opcionales y combinables (se aplican con AND):
+
+| Parámetro | Valores |
+| --- | --- |
+| `estado` | `abierto`, `en_progreso`, `resuelto`, `cerrado` |
+| `prioridad` | `P1`, `P2`, `P3`, `P4` |
+| `nivel` | `N1`, `N2`, `N3` |
+| `categoria_id` | UUID de una categoría |
+| `tag` | Un tag; coincide si está dentro del arreglo `tags` |
+
+Orden: prioridad ascendente con los tickets sin prioridad al final, y luego `creado_en` ascendente. Cada elemento incluye `categoria_nombre`.
+
+### Respuesta de `/estadisticas`
+
+```
+{
+  "por_categoria": [{"clave": "correo_confirmacion_no_entregado", "total": 0}, ...],
+  "por_tag": [{"clave": "qr", "total": 4}, ...],
+  "por_prioridad": [{"clave": "P1", "total": 2}, ..., {"clave": "sin_prioridad", "total": 1}],
+  "por_estado": [{"clave": "abierto", "total": 5}, {"clave": "en_progreso", "total": 0}, ...]
+}
+```
+
+- `por_categoria`: las 8 categorías (clave = `slug`), aunque tengan 0, ordenadas por tipo y nombre como `/categorias`.
+- `por_estado`: los 4 estados con 0, en el orden del flujo.
+- `por_prioridad`: P1 a P4 con 0; `sin_prioridad` aparece solo si hay tickets sin prioridad.
+- `por_tag`: solo tags existentes, de mayor a menor total.
+
+### Reglas de SLA
+
+La prioridad se calcula al crear el ticket a partir de `impacto` y `urgencia`:
+
+| Impacto \ Urgencia | alta | media | baja |
+| --- | --- | --- | --- |
+| alto | P1 | P2 | P3 |
+| medio | P2 | P3 | P4 |
+| bajo | P3 | P4 | P4 |
+
+| Prioridad | Vence respuesta | Vence resolución |
+| --- | --- | --- |
+| P1 | 15 minutos | 2 horas |
+| P2 | 30 minutos | 4 horas |
+| P3 | 1 hora | 8 horas |
+| P4 | 4 horas | 1 día hábil |
+
+- Los minutos y las horas son tiempo transcurrido desde `creado_en`.
+- Un día hábil se calcula en la zona `America/Guatemala`: se avanza día por día contando solo de lunes a viernes, conservando la hora y sin feriados. Un P4 creado en viernes, sábado o domingo vence el lunes a la misma hora.
+- Provisional: el plazo de resolución de P4 (1 día hábil) es una decisión provisional.
+- `vence_respuesta_en` y `vence_resolucion_en` se guardan al crear y se recalculan si cambia la prioridad.
 
 ## Estructura
 
@@ -134,6 +221,7 @@ backend/
     api/routers/         endpoints
   db/                    schema.sql y seed.sql
   scripts/seed_demo.py   datos de demostración
+  scripts/smoke_real.py  prueba de humo contra Supabase real
   tests/                 pruebas con repositorios simulados
 frontend/README.md
 ```

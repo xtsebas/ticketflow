@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -77,7 +79,7 @@ def test_crear_ticket(monkeypatch):
     cuerpo = respuesta.json()
     assert cuerpo["estado"] == "abierto"
     assert cuerpo["nivel"] == "N1"
-    assert cuerpo["prioridad"] is None
+    assert cuerpo["prioridad"] == "P1"
     assert recibido["categoria_id"] == CATEGORIA_ID
     assert recibido["impacto"] == "alto"
 
@@ -150,3 +152,28 @@ def test_listar_tickets_sin_filtros(monkeypatch):
 
 def test_listar_tickets_filtro_invalido():
     assert client.get("/tickets", params={"estado": "nada"}).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "impacto,urgencia,prioridad,respuesta,resolucion",
+    [
+        ("alto", "alta", "P1", timedelta(minutes=15), timedelta(hours=2)),
+        ("medio", "media", "P3", timedelta(hours=1), timedelta(hours=8)),
+        ("bajo", "baja", "P4", timedelta(hours=4), None),
+    ],
+)
+def test_crear_ticket_calcula_prioridad_y_vencimientos(monkeypatch, impacto, urgencia, prioridad, respuesta, resolucion):
+    recibido = {}
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: CATEGORIA)
+    monkeypatch.setattr(repo_tickets, "crear", lambda datos: recibido.update(datos) or {**TICKET, **datos})
+    respuesta_http = client.post("/tickets", json={**NUEVO, "impacto": impacto, "urgencia": urgencia})
+    assert respuesta_http.status_code == 201
+    creado = datetime.fromisoformat(recibido["creado_en"])
+    assert recibido["prioridad"] == prioridad
+    assert datetime.fromisoformat(recibido["vence_respuesta_en"]) == creado + respuesta
+    if resolucion:
+        assert datetime.fromisoformat(recibido["vence_resolucion_en"]) == creado + resolucion
+    else:
+        assert datetime.fromisoformat(recibido["vence_resolucion_en"]) > creado
+    assert respuesta_http.json()["prioridad"] == prioridad
+    assert respuesta_http.json()["vence_respuesta_en"] is not None

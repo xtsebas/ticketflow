@@ -41,7 +41,6 @@ class TicketUpdate(BaseModel):
         return self
 
     def campos_actualizables(self) -> dict:
-        """Campos enviados que se guardan en tickets (excluye motivo)."""
         return self.model_dump(mode="json", exclude={"motivo"}, exclude_none=True)
 
 

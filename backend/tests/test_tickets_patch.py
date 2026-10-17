@@ -59,7 +59,14 @@ def test_actualiza_solo_campos_enviados(monkeypatch):
     env = entorno(monkeypatch)
     respuesta = client.patch(URL, json={"prioridad": "P2", "tags": ["a", "b"]})
     assert respuesta.status_code == 200
-    assert env.actualizaciones == [{"prioridad": "P2", "tags": ["a", "b"]}]
+    assert env.actualizaciones == [
+        {
+            "prioridad": "P2",
+            "tags": ["a", "b"],
+            "vence_respuesta_en": "2026-01-01T10:30:00+00:00",
+            "vence_resolucion_en": "2026-01-01T14:00:00+00:00",
+        }
+    ]
     assert respuesta.json()["prioridad"] == "P2"
     assert env.comentarios == []
 
@@ -179,3 +186,30 @@ def test_nivel_sin_cambio_real_no_crea_comentario(monkeypatch):
     env = entorno(monkeypatch)
     assert client.patch(URL, json={"nivel": "N1"}).status_code == 200
     assert env.comentarios == []
+
+
+def test_cambio_de_prioridad_recalcula_vencimientos_desde_creado_en(monkeypatch):
+    env = entorno(monkeypatch, prioridad="P4")
+    respuesta = client.patch(URL, json={"prioridad": "P1"})
+    assert respuesta.status_code == 200
+    assert env.actualizaciones[0]["vence_respuesta_en"] == "2026-01-01T10:15:00+00:00"
+    assert env.actualizaciones[0]["vence_resolucion_en"] == "2026-01-01T12:00:00+00:00"
+
+
+def test_prioridad_sin_cambio_no_recalcula_vencimientos(monkeypatch):
+    env = entorno(monkeypatch, prioridad="P2")
+    client.patch(URL, json={"prioridad": "P2", "tags": ["x"]})
+    assert "vence_respuesta_en" not in env.actualizaciones[0]
+    assert "vence_resolucion_en" not in env.actualizaciones[0]
+
+
+def test_patch_sin_prioridad_no_toca_vencimientos(monkeypatch):
+    env = entorno(monkeypatch)
+    client.patch(URL, json={"nivel": "N2"})
+    assert env.actualizaciones == [{"nivel": "N2"}]
+
+
+def test_prioridad_desde_null_calcula_vencimientos(monkeypatch):
+    env = entorno(monkeypatch, prioridad=None)
+    client.patch(URL, json={"prioridad": "P3"})
+    assert env.actualizaciones[0]["vence_resolucion_en"] == "2026-01-01T18:00:00+00:00"

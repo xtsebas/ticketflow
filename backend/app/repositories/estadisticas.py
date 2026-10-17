@@ -4,7 +4,6 @@ TAMANO_PAGINA = 1000
 
 
 def listar_campos_tickets() -> list[dict]:
-    """Solo los campos usados en las estadisticas, paginando para no truncar en 1000 filas."""
     filas: list[dict] = []
     desde = 0
     while True:

@@ -1,4 +1,5 @@
 from collections import Counter
+from datetime import datetime, timezone
 from uuid import UUID
 
 from app.core.errors import RecursoNoEncontrado, TransicionInvalida
@@ -9,6 +10,8 @@ from app.repositories import estadisticas as repo_estadisticas
 from app.repositories import tickets as repo_tickets
 from app.schemas.comentario import ComentarioCreate
 from app.schemas.ticket import TicketCreate, TicketUpdate
+from app.services.prioridad import calcular_prioridad
+from app.services.sla import calcular_vencimientos
 
 
 TRANSICIONES_ESTADO = {
@@ -32,13 +35,22 @@ def _texto_escalamiento(ticket: dict, cambios: dict, motivo: str | None) -> str 
     return f"{texto} Motivo: {motivo}" if motivo else texto
 
 
+def _vencimientos(prioridad: str, creado_en: datetime) -> dict:
+    respuesta, resolucion = calcular_vencimientos(Prioridad(prioridad), creado_en)
+    return {"vence_respuesta_en": respuesta.isoformat(), "vence_resolucion_en": resolucion.isoformat()}
+
+
 def crear_ticket(datos: TicketCreate) -> dict:
     if repo_categorias.obtener(datos.categoria_id) is None:
         raise RecursoNoEncontrado("Categoria no encontrada")
     nuevo = datos.model_dump(mode="json")
     nuevo["estado"] = Estado.abierto.value
     nuevo["nivel"] = Nivel.N1.value
-    nuevo["prioridad"] = None
+    creado_en = datetime.now(timezone.utc)
+    prioridad = calcular_prioridad(datos.impacto, datos.urgencia)
+    nuevo["prioridad"] = prioridad.value
+    nuevo["creado_en"] = creado_en.isoformat()
+    nuevo.update(_vencimientos(prioridad, creado_en))
     return repo_tickets.crear(nuevo)
 
 
@@ -74,6 +86,8 @@ def actualizar_ticket(ticket_id: UUID, datos: TicketUpdate) -> dict:
             raise TransicionInvalida(f"Transicion de estado no permitida: {actual.value} a {nuevo.value}")
     if "categoria_id" in cambios and repo_categorias.obtener(cambios["categoria_id"]) is None:
         raise RecursoNoEncontrado("Categoria no encontrada")
+    if "prioridad" in cambios and cambios["prioridad"] != ticket["prioridad"]:
+        cambios.update(_vencimientos(cambios["prioridad"], datetime.fromisoformat(ticket["creado_en"])))
     actualizado = repo_tickets.actualizar(ticket_id, cambios)
     texto = _texto_escalamiento(ticket, cambios, datos.motivo)
     if texto:
