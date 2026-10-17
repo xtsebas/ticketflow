@@ -1,8 +1,10 @@
+from collections import Counter
 from uuid import UUID
 
-from app.domain.enums import AutorRol, Estado, Nivel
+from app.domain.enums import AutorRol, Estado, Nivel, Prioridad
 from app.repositories import categorias as repo_categorias
 from app.repositories import comentarios as repo_comentarios
+from app.repositories import estadisticas as repo_estadisticas
 from app.repositories import tickets as repo_tickets
 from app.schemas.comentario import ComentarioCreate
 from app.schemas.ticket import TicketCreate, TicketUpdate
@@ -95,5 +97,25 @@ def agregar_comentario(ticket_id: UUID, datos: ComentarioCreate) -> dict:
     return repo_comentarios.crear(ticket_id, datos.model_dump(mode="json"))
 
 
+def _conteos(claves: list[str], valores) -> list[dict]:
+    conteo = Counter(valores)
+    return [{"clave": clave, "total": conteo[clave]} for clave in claves]
+
+
 def obtener_estadisticas() -> dict:
-    raise NotImplementedError
+    tickets = repo_estadisticas.listar_campos_tickets()
+    categorias = repo_categorias.listar()
+    slug_por_id = {c["id"]: c["slug"] for c in categorias}
+
+    por_prioridad = _conteos([p.value for p in Prioridad], (t["prioridad"] for t in tickets))
+    sin_prioridad = sum(1 for t in tickets if t["prioridad"] is None)
+    if sin_prioridad:
+        por_prioridad.append({"clave": "sin_prioridad", "total": sin_prioridad})
+
+    por_tag = Counter(tag for t in tickets for tag in t["tags"])
+    return {
+        "por_categoria": _conteos([c["slug"] for c in categorias], (slug_por_id.get(t["categoria_id"]) for t in tickets)),
+        "por_tag": [{"clave": tag, "total": total} for tag, total in por_tag.most_common()],
+        "por_prioridad": por_prioridad,
+        "por_estado": _conteos([e.value for e in Estado], (t["estado"] for t in tickets)),
+    }
