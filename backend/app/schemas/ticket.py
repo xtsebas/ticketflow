@@ -56,3 +56,7 @@ class TicketOut(BaseModel):
 class TicketDetalleOut(TicketOut):
     categoria: CategoriaOut
     comentarios: list[ComentarioOut]
+
+
+class TicketListadoOut(TicketOut):
+    categoria_nombre: str

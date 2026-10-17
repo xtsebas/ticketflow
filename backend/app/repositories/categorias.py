@@ -9,4 +9,5 @@ def listar() -> list[dict]:
 
 
 def obtener(categoria_id: UUID) -> dict | None:
-    raise NotImplementedError
+    respuesta = get_client().table("categorias").select("*").eq("id", str(categoria_id)).limit(1).execute()
+    return respuesta.data[0] if respuesta.data else None
