@@ -140,7 +140,8 @@ def test_transiciones_invalidas_409(monkeypatch, actual, nuevo):
     env = entorno(monkeypatch, estado=actual)
     respuesta = client.patch(URL, json={"estado": nuevo})
     assert respuesta.status_code == 409
-    assert actual in respuesta.json()["detail"] and nuevo in respuesta.json()["detail"]
+    assert respuesta.json()["codigo"] == "conflicto"
+    assert actual in respuesta.json()["detalle"] and nuevo in respuesta.json()["detalle"]
     assert env.actualizaciones == []
     assert env.comentarios == []
 

@@ -1,6 +1,7 @@
 from collections import Counter
 from uuid import UUID
 
+from app.core.errors import RecursoNoEncontrado, TransicionInvalida
 from app.domain.enums import AutorRol, Estado, Nivel, Prioridad
 from app.repositories import categorias as repo_categorias
 from app.repositories import comentarios as repo_comentarios
@@ -8,14 +9,6 @@ from app.repositories import estadisticas as repo_estadisticas
 from app.repositories import tickets as repo_tickets
 from app.schemas.comentario import ComentarioCreate
 from app.schemas.ticket import TicketCreate, TicketUpdate
-
-
-class RecursoNoEncontrado(Exception):
-    pass
-
-
-class TransicionInvalida(Exception):
-    pass
 
 
 TRANSICIONES_ESTADO = {
