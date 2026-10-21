@@ -11,6 +11,13 @@ export function formatoFecha(iso) {
   }).format(new Date(iso))
 }
 
+// Fecha YYYY-MM-DD en Guatemala, comparable con el valor de un <input type="date">.
+export function fechaLocal(iso) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(iso),
+  )
+}
+
 export function duracion(ms) {
   const min = Math.round(Math.abs(ms) / 60000)
   if (min < 60) return `${min} min`
