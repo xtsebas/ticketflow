@@ -4,11 +4,13 @@ import { coincide, Link, useRuta } from './lib/router'
 import { SesionProvider } from './lib/session'
 import MisTickets from './pages/MisTickets'
 import NuevoTicket from './pages/NuevoTicket'
+import Tablero from './pages/Tablero'
 import TicketDetalle from './pages/TicketDetalle'
 
 function Rutas({ path }) {
   if (path === '/') return <NuevoTicket />
   if (path === '/mis-tickets') return <MisTickets />
+  if (path === '/soporte') return <Tablero />
   const detalle = coincide('/tickets/:id', path)
   if (detalle) return <TicketDetalle key={detalle.id} id={detalle.id} />
   return (

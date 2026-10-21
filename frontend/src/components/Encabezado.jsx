@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link } from '../lib/router'
 import { useSesion } from '../lib/session'
 
@@ -16,9 +17,19 @@ export default function Encabezado({ path }) {
   const s = useSesion()
   const nav = s.esAgente ? NAV_SOPORTE : NAV_USUARIO
   const activo = (to) => (to === '/' ? path === '/' : path.startsWith(to))
+  const ref = useRef(null)
+
+  // Publica la altura del encabezado para que los paneles superpuestos empiecen debajo de él.
+  useEffect(() => {
+    const raiz = document.documentElement
+    const medir = () => raiz.style.setProperty('--alto-encabezado', `${ref.current.offsetHeight}px`)
+    const observador = new ResizeObserver(medir)
+    observador.observe(ref.current)
+    return () => observador.disconnect()
+  }, [])
 
   return (
-    <header className="encabezado">
+    <header className="encabezado" ref={ref}>
       <div className="encabezado-in">
         <Link to={s.esAgente ? '/soporte' : '/'} className="marca">
           <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
