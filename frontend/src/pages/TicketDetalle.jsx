@@ -2,6 +2,7 @@
 // y edición/actualización por parte del equipo de soporte.
 import { useState } from 'react'
 import { api } from '../lib/api'
+import { asignadoA, liberarTicket, tomarTicket } from '../lib/asignacion'
 import {
   ACCION_TRANSICION,
   ESCALAMIENTOS,
@@ -160,7 +161,7 @@ function Progreso({ estado }) {
   )
 }
 
-function Comentarios({ ticket, ahora, onNuevo }) {
+export function Comentarios({ ticket, ahora, onNuevo }) {
   const sesion = useSesion()
   const avisar = useAviso()
   const [texto, setTexto] = useState('')
@@ -256,7 +257,7 @@ function Comentarios({ ticket, ahora, onNuevo }) {
   )
 }
 
-function PanelAgente({ ticket, onCambio }) {
+export function PanelAgente({ ticket, onCambio }) {
   const avisar = useAviso()
   const categorias = useCarga(() => api.categorias())
   const inicial = {
@@ -319,6 +320,8 @@ function PanelAgente({ ticket, onCambio }) {
 
   return (
     <aside className="panel-agente">
+      <Asignacion ticket={ticket} onCambio={onCambio} />
+
       <section className="tarjeta">
         <h2 className="seccion-titulo">Estado</h2>
         <p className="pequeno muted">
@@ -445,5 +448,65 @@ function PanelAgente({ ticket, onCambio }) {
         </fieldset>
       </form>
     </aside>
+  )
+}
+function Asignacion({ ticket, onCambio }) {
+  const sesion = useSesion()
+  const avisar = useAviso()
+  const [ocupado, setOcupado] = useState(false)
+  const responsable = asignadoA(ticket.comentarios)
+  const agente = sesion.nombreAgente.trim()
+  const esMio = responsable && responsable === agente
+  const cerrado = ticket.estado === 'cerrado'
+
+  const ejecutar = async (accion, aviso) => {
+    if (!agente) {
+      avisar('Escribe tu nombre de agente en la parte superior.', 'error')
+      return
+    }
+    setOcupado(true)
+    try {
+      await accion(ticket, agente)
+      avisar(aviso)
+      onCambio()
+    } catch (err) {
+      avisar(err.message, 'error')
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  return (
+    <section className="tarjeta">
+      <h2 className="seccion-titulo">Responsable</h2>
+      <div className="responsable">
+        {responsable ? (
+          <>
+            <Avatar nombre={responsable} rol="agente" />
+            <strong>{responsable}</strong>
+            {esMio && <span className="muted pequeno">(tú)</span>}
+          </>
+        ) : (
+          <span className="muted">Sin asignar</span>
+        )}
+      </div>
+      {!cerrado && (
+        <div className="botones-estado">
+          {!esMio && (
+            <button className="btn btn-primario" disabled={ocupado} onClick={() => ejecutar(tomarTicket, 'Ticket tomado')}>
+              {responsable ? `Tomar (reasignar a ${agente || 'mí'})` : 'Tomar ticket'}
+            </button>
+          )}
+          {esMio && (
+            <button className="btn" disabled={ocupado} onClick={() => ejecutar(liberarTicket, 'Ticket liberado')}>
+              Liberar ticket
+            </button>
+          )}
+          {!responsable && ticket.estado === 'abierto' && (
+            <small className="nota">Al tomarlo pasa a «En progreso».</small>
+          )}
+        </div>
+      )}
+    </section>
   )
 }
