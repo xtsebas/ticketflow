@@ -2,6 +2,7 @@ import Encabezado from './components/Encabezado'
 import { ToastProvider, Vacio } from './components/ui'
 import { coincide, Link, useRuta } from './lib/router'
 import { SesionProvider } from './lib/session'
+import Estadisticas from './pages/Estadisticas'
 import MisTickets from './pages/MisTickets'
 import NuevoTicket from './pages/NuevoTicket'
 import Tablero from './pages/Tablero'
@@ -11,6 +12,7 @@ function Rutas({ path }) {
   if (path === '/') return <NuevoTicket />
   if (path === '/mis-tickets') return <MisTickets />
   if (path === '/soporte') return <Tablero />
+  if (path === '/estadisticas') return <Estadisticas />
   const detalle = coincide('/tickets/:id', path)
   if (detalle) return <TicketDetalle key={detalle.id} id={detalle.id} />
   return (
