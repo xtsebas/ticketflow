@@ -5,7 +5,9 @@ Service Desk de TicketFlow (plataforma de venta de entradas en línea) para el c
 Monorepo:
 
 - `backend/`: API en FastAPI con Supabase (Postgres). Tickets, comentarios, categorías, estadísticas, cálculo de prioridad y vencimientos SLA.
-- `frontend/`: pendiente.
+- `frontend/`: SPA en React + Vite. Ingreso de tickets, tablero de soporte, detalle con comentarios y estadísticas.
+
+Para levantar todo en local: configura la base de datos, arranca el servidor del backend y luego el frontend (secciones siguientes).
 
 ## Entorno virtual
 
@@ -50,6 +52,34 @@ uvicorn app.main:app --reload
 ```
 
 Documentación interactiva en http://localhost:8000/docs.
+
+## Frontend
+
+Requiere Node.js 20.19 o superior y el backend corriendo en `localhost:8000`.
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Abre http://localhost:5173. Para apuntar a otro backend, crea `frontend/.env.local` con `VITE_API_URL=https://...` (el origen del frontend debe estar en `CORS_ORIGINS` del backend).
+
+Build de producción: `npm run build` (genera `frontend/dist/`) y `npm run preview` para revisarlo.
+
+### Vistas
+
+No hay autenticación: el selector de rol del encabezado solo cambia la vista (usuario del servicio o equipo de soporte) y el autor de los comentarios. El rol y el nombre se guardan en el navegador.
+
+| Ruta | Rol | Requerimiento | Descripción |
+| --- | --- | --- | --- |
+| `#/` | Ambos | 1 | Nuevo ticket: tipo, servicio del catálogo, impacto y urgencia sugeridos según la Fase 1, y prioridad y vencimientos SLA calculados |
+| `#/mis-tickets` | Usuario | 3 | Tickets creados desde este navegador y búsqueda por número |
+| `#/tickets/:id` | Ambos | 3 y 4 | Detalle con comentarios de seguimiento; soporte además ve notas internas y puede editar el ticket |
+| `#/soporte` | Soporte | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero |
+| `#/estadisticas` | Soporte | 5 | Gráficas por categoría, tipo, estado, prioridad, tag y día |
+
+El router usa el hash (`#/ruta`), así que el build se puede servir como archivos estáticos sin configurar rutas en el servidor.
 
 ## Pruebas
 
@@ -203,6 +233,7 @@ La prioridad se calcula al crear el ticket a partir de `impacto` y `urgencia`:
 - Los minutos y las horas son tiempo transcurrido desde `creado_en`.
 - Un día hábil se calcula en la zona `America/Guatemala`: se avanza día por día contando solo de lunes a viernes, conservando la hora y sin feriados. Un P4 creado en viernes, sábado o domingo vence el lunes a la misma hora.
 - Provisional: el plazo de resolución de P4 (1 día hábil) es una decisión provisional.
+- Pendiente: en la matriz de la Fase 1 (sección 6), la celda bajo × baja tiene respuesta en 8 horas y resolución en 2 días hábiles. Hoy el backend le aplica los tiempos generales de P4.
 - `vence_respuesta_en` y `vence_resolucion_en` se guardan al crear y se recalculan si cambia la prioridad.
 
 ## Estructura
@@ -223,5 +254,15 @@ backend/
   scripts/seed_demo.py   datos de demostración
   scripts/smoke_real.py  prueba de humo contra Supabase real
   tests/                 pruebas con repositorios simulados
-frontend/README.md
+frontend/
+  src/
+    main.jsx             punto de entrada
+    App.jsx              rutas
+    pages/               una vista por ruta
+    components/          encabezado, panel de ticket, gráficas y componentes compartidos
+    lib/api.js           cliente del backend
+    lib/constants.js     valores del dominio y criterios de la Fase 1
+    lib/router.jsx       router por hash
+    lib/session.jsx      rol y nombre de quien usa la app
+    styles.css           estilos
 ```
