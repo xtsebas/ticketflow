@@ -12,8 +12,13 @@ class TransicionInvalida(Exception):
     pass
 
 
+class NoAutenticado(Exception):
+    pass
+
+
 CODIGOS_HTTP = {
     400: "solicitud_invalida",
+    401: "no_autenticado",
     404: "no_encontrado",
     405: "metodo_no_permitido",
     409: "conflicto",
@@ -33,6 +38,10 @@ def registrar_manejadores(app: FastAPI) -> None:
     @app.exception_handler(TransicionInvalida)
     async def conflicto(_: Request, error: TransicionInvalida):
         return respuesta_error(409, str(error), "conflicto")
+
+    @app.exception_handler(NoAutenticado)
+    async def no_autenticado(_: Request, error: NoAutenticado):
+        return respuesta_error(401, str(error), "no_autenticado")
 
     @app.exception_handler(RequestValidationError)
     async def validacion(_: Request, error: RequestValidationError):

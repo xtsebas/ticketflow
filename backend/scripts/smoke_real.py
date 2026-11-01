@@ -34,10 +34,11 @@ from fastapi.testclient import TestClient
 from app.db.client import get_client
 from app.main import app
 from app.repositories import tickets as repo_tickets
+from app.services.auth import crear_token
 from app.services.prioridad import calcular_prioridad
 from app.services.sla import calcular_vencimientos
 
-cliente = TestClient(app)
+cliente = TestClient(app, headers={"Authorization": f"Bearer {crear_token('soporte1')}"})
 corrida = uuid.uuid4().hex[:8]
 etiqueta_corrida = f"smoke_{corrida}"
 resultados: list[tuple[str, bool, str]] = []

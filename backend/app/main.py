@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import categorias, comentarios, estadisticas, health, tickets
+from app.api.routers import auth, categorias, comentarios, estadisticas, health, tickets
 from app.core.config import get_settings
 from app.core.errors import registrar_manejadores
 
@@ -19,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(categorias.router)
 app.include_router(tickets.router)
 app.include_router(comentarios.router)

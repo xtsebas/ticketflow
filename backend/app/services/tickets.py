@@ -10,6 +10,7 @@ from app.repositories import estadisticas as repo_estadisticas
 from app.repositories import tickets as repo_tickets
 from app.schemas.comentario import ComentarioCreate
 from app.schemas.ticket import TicketCreate, TicketUpdate
+from app.services.auth import exigir_agente
 from app.services.prioridad import calcular_prioridad
 from app.services.sla import calcular_vencimientos
 
@@ -64,7 +65,9 @@ def listar_tickets(
     return repo_tickets.listar(estado, prioridad, nivel, categoria_id, tag)
 
 
-def obtener_ticket(ticket_id: UUID, rol: AutorRol = AutorRol.solicitante) -> dict:
+def obtener_ticket(ticket_id: UUID, rol: AutorRol = AutorRol.solicitante, usuario: str | None = None) -> dict:
+    if rol == AutorRol.agente:
+        exigir_agente(usuario)
     ticket = repo_tickets.obtener(ticket_id)
     if ticket is None:
         raise RecursoNoEncontrado("Ticket no encontrado")
@@ -98,7 +101,9 @@ def actualizar_ticket(ticket_id: UUID, datos: TicketUpdate) -> dict:
     return actualizado
 
 
-def agregar_comentario(ticket_id: UUID, datos: ComentarioCreate) -> dict:
+def agregar_comentario(ticket_id: UUID, datos: ComentarioCreate, usuario: str | None = None) -> dict:
+    if datos.autor_rol == AutorRol.agente:
+        exigir_agente(usuario)
     if repo_tickets.obtener(ticket_id) is None:
         raise RecursoNoEncontrado("Ticket no encontrado")
     return repo_comentarios.crear(ticket_id, datos.model_dump(mode="json"))

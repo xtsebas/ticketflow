@@ -63,21 +63,31 @@ export default function Encabezado({ path }) {
             <button
               className={s.esAgente ? 'activo' : ''}
               onClick={() => {
-                s.setRol('agente')
                 window.location.hash = '/soporte'
               }}
             >
               Soporte
             </button>
           </div>
-          <label className="nombre-sesion" title={s.esAgente ? 'Nombre del agente' : 'Tu nombre o usuario'}>
-            <span className="visually-hidden">{s.esAgente ? 'Agente' : 'Usuario'}</span>
-            <input
-              value={s.esAgente ? s.nombreAgente : s.nombre}
-              placeholder={s.esAgente ? 'agente' : 'tu usuario'}
-              onChange={(e) => (s.esAgente ? s.setNombreAgente(e.target.value) : s.setNombre(e.target.value))}
-            />
-          </label>
+          {s.esAgente ? (
+            <strong title="Sesión de soporte">{s.nombreAgente}</strong>
+          ) : (
+            <label className="nombre-sesion" title="Tu nombre o usuario">
+              <span className="visually-hidden">Usuario</span>
+              <input value={s.nombre} placeholder="tu usuario" onChange={(e) => s.setNombre(e.target.value)} />
+            </label>
+          )}
+          {s.autenticado && (
+            <button
+              className="btn btn-sm btn-texto"
+              onClick={() => {
+                s.cerrarSesion()
+                window.location.hash = '/'
+              }}
+            >
+              Salir
+            </button>
+          )}
         </div>
       </div>
     </header>
