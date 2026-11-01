@@ -1,0 +1,11 @@
+from pydantic import BaseModel
+
+
+class LoginIn(BaseModel):
+    usuario: str
+    contrasena: str
+
+
+class LoginOut(BaseModel):
+    token: str
+    usuario: str

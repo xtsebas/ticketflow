@@ -1,7 +1,8 @@
+import secrets
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -14,6 +15,12 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:3000",
     ]
+    auth_secret: str = Field(default="", validate_default=True)
+
+    @field_validator("auth_secret")
+    @classmethod
+    def generar_secreto(cls, valor: str) -> str:
+        return valor or secrets.token_urlsafe(32)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

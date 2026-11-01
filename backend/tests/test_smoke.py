@@ -34,6 +34,7 @@ def test_health_con_supabase_alcanzable(monkeypatch):
 def test_openapi_lista_endpoints():
     rutas = client.get("/openapi.json").json()["paths"]
     assert "/health" in rutas
+    assert "post" in rutas["/auth/login"]
     assert "/categorias" in rutas
     assert set(rutas["/tickets"]) == {"get", "post"}
     assert set(rutas["/tickets/{ticket_id}"]) == {"get", "patch"}

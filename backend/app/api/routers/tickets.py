@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.dependencies import requiere_agente, usuario_actual
 from app.domain.enums import AutorRol, Estado, Nivel, Prioridad
 from app.schemas.ticket import TicketCreate, TicketDetalleOut, TicketListadoOut, TicketOut, TicketUpdate
 from app.services import tickets as servicio
@@ -14,7 +15,7 @@ def crear_ticket(datos: TicketCreate):
     return servicio.crear_ticket(datos)
 
 
-@router.get("", response_model=list[TicketListadoOut])
+@router.get("", response_model=list[TicketListadoOut], dependencies=[Depends(requiere_agente)])
 def listar_tickets(
     estado: Estado | None = None,
     prioridad: Prioridad | None = None,
@@ -26,10 +27,14 @@ def listar_tickets(
 
 
 @router.get("/{ticket_id}", response_model=TicketDetalleOut)
-def obtener_ticket(ticket_id: UUID, rol: AutorRol = AutorRol.solicitante):
-    return servicio.obtener_ticket(ticket_id, rol)
+def obtener_ticket(
+    ticket_id: UUID,
+    rol: AutorRol = AutorRol.solicitante,
+    usuario: str | None = Depends(usuario_actual),
+):
+    return servicio.obtener_ticket(ticket_id, rol, usuario)
 
 
-@router.patch("/{ticket_id}", response_model=TicketOut)
+@router.patch("/{ticket_id}", response_model=TicketOut, dependencies=[Depends(requiere_agente)])
 def actualizar_ticket(ticket_id: UUID, cambios: TicketUpdate):
     return servicio.actualizar_ticket(ticket_id, cambios)
