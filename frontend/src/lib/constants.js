@@ -139,6 +139,65 @@ export const SUGERENCIA_POR_CATEGORIA = {
   reembolso_cancelacion_entrada: { impacto: 'bajo', urgencia: 'baja', nivel: 'N1' },
 }
 
+// Gestión de problemas (Fase 1, Flujo 3). Para cada incidente tipificado del catálogo: causas raíz
+// probables y solución temporal mientras se aplica la definitiva (error conocido). Se basan en las
+// cuatro dimensiones, los proveedores y los niveles de atención de la Fase 1.
+export const PROBLEMAS_CONOCIDOS = {
+  pago_no_procesado_cobro_duplicado: {
+    nivel: 'N3',
+    causas: [
+      'Caída o tiempo de respuesta excesivo de la pasarela de pago externa',
+      'Reintentos del comprador o de la plataforma sin control de duplicados, que generan dos cobros',
+      'Falla del certificador FEL que deja la compra sin confirmar aunque el cobro se realizó',
+    ],
+    solucionTemporal: [
+      'Verificar la transacción en el panel de la pasarela antes de pedir al usuario que reintente',
+      'Anular o reembolsar el cobro duplicado y emitir el ticket digital de forma manual',
+    ],
+  },
+  qr_rechazado_en_puerta: {
+    nivel: 'N2',
+    causas: [
+      'Lector sin conexión o con latencia al validar contra la base de datos en tiempo real',
+      'Un reenvío del ticket generó un QR nuevo e invalidó el anterior',
+      'Error en la firma digital del QR o desincronización de hora en el dispositivo de validación',
+    ],
+    solucionTemporal: [
+      'Validar manualmente con número de orden y documento contra la lista de asistentes del evento',
+      'Reenviar al asistente el QR vigente desde el panel administrativo',
+    ],
+  },
+  correo_confirmacion_no_entregado: {
+    nivel: 'N1',
+    causas: [
+      'Retraso o rechazo del proveedor de correo transaccional (UC: entrega en 90 s o menos)',
+      'Cola de envíos saturada durante una venta masiva',
+      'Correo del usuario mal escrito o el mensaje terminó en spam',
+    ],
+    solucionTemporal: [
+      'Atender como solicitud de reenvío de ticket digital',
+      'Indicar al usuario que descargue su ticket desde el portal',
+    ],
+  },
+  panel_ventas_desincronizado: {
+    nivel: 'N2',
+    causas: [
+      'Caché o réplica del panel desactualizada respecto a la base de datos',
+      'Falla del proceso que consolida las ventas en tiempo real',
+      'Transacciones pendientes de confirmación de la pasarela que aún no cuentan como vendidas',
+    ],
+    solucionTemporal: [
+      'Entregar al organizador el reporte de ventas generado directamente desde la base de datos',
+      'Forzar la actualización de la caché del panel',
+    ],
+  },
+}
+
+// Conexión Incidente → Problema (Fase 1): se propone abrir un registro de problema cuando el incidente
+// es recurrente o de alto impacto.
+export const VENTANA_PROBLEMAS_DIAS = 7
+export const UMBRAL_RECURRENCIA = 3
+
 // OLA de atención de incidentes críticos (Fase 1, sección 7): un P1 se escala a N2 en ≤ 10 min.
 export const OLA_ESCALAMIENTO_P1_MIN = 10
 

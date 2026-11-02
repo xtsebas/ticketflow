@@ -7,6 +7,7 @@ import Estadisticas from './pages/Estadisticas'
 import Login from './pages/Login'
 import MisTickets from './pages/MisTickets'
 import NuevoTicket from './pages/NuevoTicket'
+import Problemas from './pages/Problemas'
 import Tablero from './pages/Tablero'
 import TicketDetalle from './pages/TicketDetalle'
 
@@ -32,6 +33,13 @@ function Rutas({ path }) {
     return (
       <RutaSoporte>
         <Estadisticas />
+      </RutaSoporte>
+    )
+  }
+  if (path === '/problemas') {
+    return (
+      <RutaSoporte>
+        <Problemas />
       </RutaSoporte>
     )
   }
