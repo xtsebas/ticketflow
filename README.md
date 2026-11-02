@@ -5,7 +5,9 @@ Service Desk de TicketFlow (plataforma de venta de entradas en línea) para el c
 Monorepo:
 
 - `backend/`: API en FastAPI con Supabase (Postgres). Tickets, comentarios, categorías, estadísticas, cálculo de prioridad y vencimientos SLA.
-- `frontend/`: pendiente.
+- `frontend/`: SPA en React + Vite. Ingreso de tickets, tablero de soporte, detalle con comentarios y estadísticas.
+
+Para levantar todo en local: configura la base de datos, arranca el servidor del backend y luego el frontend (secciones siguientes).
 
 ## Entorno virtual
 
@@ -51,6 +53,56 @@ uvicorn app.main:app --reload
 ```
 
 Documentación interactiva en http://localhost:8000/docs.
+
+## Frontend
+
+Requiere Node.js 20.19 o superior y el backend corriendo en `localhost:8000`.
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Abre http://localhost:5173. Para apuntar a otro backend, crea `frontend/.env.local` con `VITE_API_URL=https://...` (el origen del frontend debe estar en `CORS_ORIGINS` del backend).
+
+Build de producción: `npm run build` (genera `frontend/dist/`) y `npm run preview` para revisarlo.
+
+### Vistas
+
+El selector Usuario / Soporte del encabezado cambia de vista. El usuario del servicio no inicia sesión: escribe su nombre, que queda como solicitante y autor de sus comentarios. Las vistas de soporte piden iniciar sesión con un usuario de soporte (ver "Sesión de soporte"); el token se guarda en el navegador y "Salir" cierra la sesión.
+
+| Ruta | Rol | Requerimiento | Descripción |
+| --- | --- | --- | --- |
+| `#/` | Ambos | 1 | Nuevo ticket: tipo, servicio del catálogo, impacto y urgencia sugeridos según la Fase 1, y prioridad y vencimientos SLA calculados |
+| `#/mis-tickets` | Usuario | 3 | Tickets creados desde este navegador y búsqueda por número |
+| `#/tickets/:id` | Ambos | 3 y 4 | Detalle con comentarios de seguimiento; con sesión de soporte además se ven las notas internas y se puede editar el ticket |
+| `#/soporte` | Soporte (con sesión) | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero. Marca con "Escalar a N2" los P1 que siguen en N1 después de 10 min (OLA de la Fase 1, sección 7) |
+| `#/estadisticas` | Soporte (con sesión) | 5 | Gráficas por categoría, tipo, estado, prioridad, tag y día |
+| `#/problemas` | Soporte (con sesión) | Objetivo de gestión de problemas | Por cada incidente del catálogo: causas raíz probables, solución temporal (error conocido), nivel responsable e incidentes recientes. Propone abrir un registro de problema si el incidente es recurrente (3 o más en 7 días) o de alto impacto (algún P1), según la conexión Incidente → Problema de la Fase 1 |
+
+Sin sesión, `#/soporte`, `#/estadisticas` y `#/problemas` muestran el formulario de inicio de sesión. Las causas raíz y soluciones temporales están en `PROBLEMAS_CONOCIDOS` de `frontend/src/lib/constants.js`.
+
+El router usa el hash (`#/ruta`), así que el build se puede servir como archivos estáticos sin configurar rutas en el servidor.
+
+## Docker
+
+Alternativa a levantar el backend y el frontend por separado. Requiere Docker con Compose y haber configurado la base de datos y `backend/.env` (secciones anteriores).
+
+```
+docker compose up --build
+```
+
+- Backend en http://localhost:8000: imagen de Python 3.12 con uvicorn; lee las variables de `backend/.env` (si no existe arranca igual, sin Supabase).
+- Frontend en http://localhost:5173: build de Vite servido con nginx.
+
+`VITE_API_URL` se fija al construir la imagen del frontend (por defecto `http://localhost:8000`). Para otro backend: `VITE_API_URL=https://... docker compose up --build`. Define `AUTH_SECRET` en `backend/.env` para que las sesiones de soporte sobrevivan a un reinicio del contenedor.
+
+Los datos de demostración se cargan desde el contenedor del backend:
+
+```
+docker compose exec backend python scripts/seed_demo.py --reset
+```
 
 ## Pruebas
 
@@ -239,11 +291,24 @@ backend/
     db/client.py         cliente Supabase perezoso
     repositories/        único acceso a datos
     schemas/             modelos Pydantic
-    services/            lógica de negocio (prioridad, sla, tickets)
+    services/            lógica de negocio (prioridad, sla, tickets, auth)
     api/routers/         endpoints
   db/                    schema.sql y seed.sql
   scripts/seed_demo.py   datos de demostración
   scripts/smoke_real.py  prueba de humo contra Supabase real
   tests/                 pruebas con repositorios simulados
-frontend/README.md
+  Dockerfile             imagen del backend
+frontend/
+  src/
+    main.jsx             punto de entrada
+    App.jsx              rutas
+    pages/               una vista por ruta
+    components/          encabezado, panel de ticket, gráficas y componentes compartidos
+    lib/api.js           cliente del backend
+    lib/constants.js     valores del dominio y criterios de la Fase 1
+    lib/router.jsx       router por hash
+    lib/session.jsx      rol, nombre y sesión de soporte
+    styles.css           estilos
+docker/                  Dockerfile del frontend
+docker-compose.yml       backend y frontend con Docker
 ```
