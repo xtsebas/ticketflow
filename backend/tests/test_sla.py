@@ -30,6 +30,23 @@ def test_p4_respuesta_en_cuatro_horas_y_resolucion_en_un_dia_habil():
     assert vence_resolucion == JUEVES + timedelta(days=1)
 
 
+def test_p4_bajo_baja_respuesta_en_ocho_horas_y_resolucion_en_dos_dias_habiles():
+    vence_respuesta, vence_resolucion = calcular_vencimientos(Prioridad.P4, JUEVES, "bajo", "baja")
+    assert vence_respuesta == JUEVES + timedelta(hours=8)
+    assert vence_resolucion == datetime(2026, 1, 5, 10, 0, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("impacto,urgencia", [("medio", "baja"), ("bajo", "media"), (None, None)])
+def test_resto_de_p4_usa_los_plazos_generales(impacto, urgencia):
+    vence_respuesta, vence_resolucion = calcular_vencimientos(Prioridad.P4, JUEVES, impacto, urgencia)
+    assert vence_respuesta == JUEVES + timedelta(hours=4)
+    assert vence_resolucion == JUEVES + timedelta(days=1)
+
+
+def test_bajo_baja_solo_alarga_los_plazos_de_p4():
+    assert calcular_vencimientos(Prioridad.P1, JUEVES, "bajo", "baja") == calcular_vencimientos(Prioridad.P1, JUEVES)
+
+
 @pytest.mark.parametrize("dia,nombre", [(2, "viernes"), (3, "sabado"), (4, "domingo")])
 def test_p4_creado_en_viernes_sabado_o_domingo_termina_el_lunes(dia, nombre):
     creado = datetime(2026, 1, dia, 15, 30, tzinfo=GUATEMALA)

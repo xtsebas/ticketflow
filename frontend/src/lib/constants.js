@@ -111,6 +111,17 @@ export function calcularPrioridad(impacto, urgencia) {
   return MATRIZ[impacto]?.[urgencia] ?? null
 }
 
+// Plazos SLA de un ticket. Igual que backend/app/services/sla.py: la celda bajo × baja es P4,
+// pero con plazos más largos que el resto de P4 (Fase 1, sección 6).
+const PLAZOS_P4_BAJO_BAJA = { respuesta: '8 h', resolucion: '2 días hábiles' }
+
+export function plazosSla(prioridad, impacto, urgencia) {
+  const p = PRIORIDADES.find((x) => x.valor === prioridad)
+  if (!p) return null
+  if (prioridad === 'P4' && impacto === 'bajo' && urgencia === 'baja') return PLAZOS_P4_BAJO_BAJA
+  return { respuesta: p.respuesta, resolucion: p.resolucion }
+}
+
 // Impacto, urgencia y nivel sugeridos para cada servicio del catálogo (Fase 1).
 // - Pagos y validación de QR son el núcleo de la garantía del servicio (pago < 2 min, QR válido):
 //   impiden ingreso o pago, por eso impacto alto.

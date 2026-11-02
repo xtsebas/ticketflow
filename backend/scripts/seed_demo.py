@@ -75,7 +75,7 @@ def construir(categorias: list[dict]) -> list[tuple[dict, list[dict]]]:
     for i, (slug, titulo, tags, impacto, urgencia, estado, nivel, escal, solicitante, coms) in enumerate(TICKETS):
         creado = base + timedelta(days=i, minutes=i * 7)
         prioridad = calcular_prioridad(impacto, urgencia)
-        vence_respuesta, vence_resolucion = calcular_vencimientos(prioridad, creado)
+        vence_respuesta, vence_resolucion = calcular_vencimientos(prioridad, creado, impacto, urgencia)
         ticket = {
             "titulo": titulo,
             "descripcion": f"{titulo}. Ticket de demostracion.",

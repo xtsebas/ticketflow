@@ -36,8 +36,8 @@ def _texto_escalamiento(ticket: dict, cambios: dict, motivo: str | None) -> str 
     return f"{texto} Motivo: {motivo}" if motivo else texto
 
 
-def _vencimientos(prioridad: str, creado_en: datetime) -> dict:
-    respuesta, resolucion = calcular_vencimientos(Prioridad(prioridad), creado_en)
+def _vencimientos(prioridad: str, creado_en: datetime, impacto: str, urgencia: str) -> dict:
+    respuesta, resolucion = calcular_vencimientos(Prioridad(prioridad), creado_en, impacto, urgencia)
     return {"vence_respuesta_en": respuesta.isoformat(), "vence_resolucion_en": resolucion.isoformat()}
 
 
@@ -51,7 +51,7 @@ def crear_ticket(datos: TicketCreate) -> dict:
     prioridad = calcular_prioridad(datos.impacto, datos.urgencia)
     nuevo["prioridad"] = prioridad.value
     nuevo["creado_en"] = creado_en.isoformat()
-    nuevo.update(_vencimientos(prioridad, creado_en))
+    nuevo.update(_vencimientos(prioridad, creado_en, datos.impacto, datos.urgencia))
     return repo_tickets.crear(nuevo)
 
 
@@ -90,7 +90,8 @@ def actualizar_ticket(ticket_id: UUID, datos: TicketUpdate) -> dict:
     if "categoria_id" in cambios and repo_categorias.obtener(cambios["categoria_id"]) is None:
         raise RecursoNoEncontrado("Categoria no encontrada")
     if "prioridad" in cambios and cambios["prioridad"] != ticket["prioridad"]:
-        cambios.update(_vencimientos(cambios["prioridad"], datetime.fromisoformat(ticket["creado_en"])))
+        creado_en = datetime.fromisoformat(ticket["creado_en"])
+        cambios.update(_vencimientos(cambios["prioridad"], creado_en, ticket["impacto"], ticket["urgencia"]))
     actualizado = repo_tickets.actualizar(ticket_id, cambios)
     texto = _texto_escalamiento(ticket, cambios, datos.motivo)
     if texto:

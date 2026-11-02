@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from app.domain.enums import Prioridad
+from app.domain.enums import Impacto, Prioridad, Urgencia
 
 ZONA_HORARIA = ZoneInfo("America/Guatemala")
 DIAS_HABILES = range(5)
@@ -32,8 +32,20 @@ PLAZOS_RESOLUCION = {
 }
 
 
-def calcular_vencimientos(prioridad: Prioridad, creado_en: datetime) -> tuple[datetime, datetime]:
+# Fase 1, sección 6: la celda bajo × baja es P4, pero con plazos más largos que el resto de P4.
+RESPUESTA_P4_BAJO_BAJA = timedelta(hours=8)
+DIAS_RESOLUCION_P4_BAJO_BAJA = 2
+
+
+def calcular_vencimientos(
+    prioridad: Prioridad,
+    creado_en: datetime,
+    impacto: Impacto | None = None,
+    urgencia: Urgencia | None = None,
+) -> tuple[datetime, datetime]:
     prioridad = Prioridad(prioridad)
     if creado_en.tzinfo is None:
         creado_en = creado_en.replace(tzinfo=timezone.utc)
+    if prioridad == Prioridad.P4 and impacto == Impacto.bajo and urgencia == Urgencia.baja:
+        return creado_en + RESPUESTA_P4_BAJO_BAJA, sumar_dias_habiles(creado_en, DIAS_RESOLUCION_P4_BAJO_BAJA)
     return creado_en + TIEMPOS_RESPUESTA[prioridad], PLAZOS_RESOLUCION[prioridad](creado_en)

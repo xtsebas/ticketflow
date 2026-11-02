@@ -196,6 +196,20 @@ def test_cambio_de_prioridad_recalcula_vencimientos_desde_creado_en(monkeypatch)
     assert env.actualizaciones[0]["vence_resolucion_en"] == "2026-01-01T12:00:00+00:00"
 
 
+def test_bajar_a_p4_un_ticket_bajo_baja_usa_los_plazos_de_esa_celda(monkeypatch):
+    env = entorno(monkeypatch, impacto="bajo", urgencia="baja", prioridad="P3")
+    assert client.patch(URL, json={"prioridad": "P4"}).status_code == 200
+    assert env.actualizaciones[0]["vence_respuesta_en"] == "2026-01-01T18:00:00+00:00"
+    assert env.actualizaciones[0]["vence_resolucion_en"] == "2026-01-05T10:00:00+00:00"
+
+
+def test_bajar_a_p4_otro_ticket_usa_los_plazos_generales(monkeypatch):
+    env = entorno(monkeypatch, impacto="medio", urgencia="baja", prioridad="P3")
+    assert client.patch(URL, json={"prioridad": "P4"}).status_code == 200
+    assert env.actualizaciones[0]["vence_respuesta_en"] == "2026-01-01T14:00:00+00:00"
+    assert env.actualizaciones[0]["vence_resolucion_en"] == "2026-01-02T10:00:00+00:00"
+
+
 def test_prioridad_sin_cambio_no_recalcula_vencimientos(monkeypatch):
     env = entorno(monkeypatch, prioridad="P2")
     client.patch(URL, json={"prioridad": "P2", "tags": ["x"]})

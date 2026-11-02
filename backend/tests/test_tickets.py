@@ -159,7 +159,8 @@ def test_listar_tickets_filtro_invalido():
     [
         ("alto", "alta", "P1", timedelta(minutes=15), timedelta(hours=2)),
         ("medio", "media", "P3", timedelta(hours=1), timedelta(hours=8)),
-        ("bajo", "baja", "P4", timedelta(hours=4), None),
+        ("bajo", "media", "P4", timedelta(hours=4), None),
+        ("bajo", "baja", "P4", timedelta(hours=8), None),
     ],
 )
 def test_crear_ticket_calcula_prioridad_y_vencimientos(monkeypatch, impacto, urgencia, prioridad, respuesta, resolucion):
