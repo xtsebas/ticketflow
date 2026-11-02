@@ -77,10 +77,11 @@ El selector Usuario / Soporte del encabezado cambia de vista. El usuario del ser
 | `#/` | Ambos | 1 | Nuevo ticket: tipo, servicio del catálogo, impacto y urgencia sugeridos según la Fase 1, y prioridad y vencimientos SLA calculados |
 | `#/mis-tickets` | Usuario | 3 | Tickets creados desde este navegador y búsqueda por número |
 | `#/tickets/:id` | Ambos | 3 y 4 | Detalle con comentarios de seguimiento; con sesión de soporte además se ven las notas internas y se puede editar el ticket |
-| `#/soporte` | Soporte (con sesión) | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero |
+| `#/soporte` | Soporte (con sesión) | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero. Marca con "Escalar a N2" los P1 que siguen en N1 después de 10 min (OLA de la Fase 1, sección 7) |
 | `#/estadisticas` | Soporte (con sesión) | 5 | Gráficas por categoría, tipo, estado, prioridad, tag y día |
+| `#/problemas` | Soporte (con sesión) | Objetivo de gestión de problemas | Por cada incidente del catálogo: causas raíz probables, solución temporal (error conocido), nivel responsable e incidentes recientes. Propone abrir un registro de problema si el incidente es recurrente (3 o más en 7 días) o de alto impacto (algún P1), según la conexión Incidente → Problema de la Fase 1 |
 
-Sin sesión, `#/soporte` y `#/estadisticas` muestran el formulario de inicio de sesión.
+Sin sesión, `#/soporte`, `#/estadisticas` y `#/problemas` muestran el formulario de inicio de sesión. Las causas raíz y soluciones temporales están en `PROBLEMAS_CONOCIDOS` de `frontend/src/lib/constants.js`.
 
 El router usa el hash (`#/ruta`), así que el build se puede servir como archivos estáticos sin configurar rutas en el servidor.
 
