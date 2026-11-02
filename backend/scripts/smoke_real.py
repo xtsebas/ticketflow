@@ -110,7 +110,7 @@ def verificar_ocho_categorias():
         impacto, urgencia = COMBINACIONES[indice]
         prioridad = calcular_prioridad(impacto, urgencia)
         assert ticket["prioridad"] == prioridad.value, f"prioridad {ticket['prioridad']} != {prioridad.value}"
-        respuesta, resolucion = calcular_vencimientos(prioridad, fecha(ticket["creado_en"]))
+        respuesta, resolucion = calcular_vencimientos(prioridad, fecha(ticket["creado_en"]), impacto, urgencia)
         assert fecha(ticket["vence_respuesta_en"]) == respuesta, "vence_respuesta_en no coincide"
         assert fecha(ticket["vence_resolucion_en"]) == resolucion, "vence_resolucion_en no coincide"
     assert {t["prioridad"] for t in creados.values()} == {"P1", "P2", "P3", "P4"}

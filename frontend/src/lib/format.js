@@ -1,3 +1,5 @@
+import { OLA_ESCALAMIENTO_P1_MIN } from './constants'
+
 const ZONA = 'America/Guatemala'
 
 export function formatoFecha(iso) {
@@ -48,6 +50,13 @@ export function estadoSla(ticket, ahora = Date.now()) {
   if (restante <= 0) return { clase: 'vencido', texto: `${tipo} vencida hace ${duracion(restante)}`, vencido: true }
   const enRiesgo = restante < (fin - inicio) * 0.25
   return { clase: enRiesgo ? 'riesgo' : 'ok', texto: `${tipo} en ${duracion(restante)}` }
+}
+
+// OLA de la Fase 1 (sección 7): un P1 debe estar escalado a N2 a los 10 min de creado.
+export function excedeOla(ticket, ahora = Date.now()) {
+  if (ticket.prioridad !== 'P1' || ticket.nivel !== 'N1') return false
+  if (ticket.estado === 'resuelto' || ticket.estado === 'cerrado') return false
+  return ahora - new Date(ticket.creado_en).getTime() > OLA_ESCALAMIENTO_P1_MIN * 60000
 }
 
 export function iniciales(nombre = '') {

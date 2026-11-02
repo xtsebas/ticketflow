@@ -14,6 +14,7 @@ import {
   TRANSICIONES,
   URGENCIAS,
   etiqueta,
+  plazosSla,
 } from '../lib/constants'
 import { formatoFecha, haceCuanto, idCorto } from '../lib/format'
 import { useAhora, useCarga } from '../lib/hooks'
@@ -348,11 +349,14 @@ export function PanelAgente({ ticket, onCambio }) {
             <span>Prioridad</span>
             <select value={form.prioridad} onChange={(e) => set('prioridad', e.target.value)}>
               {!inicial.prioridad && <option value="">Sin prioridad</option>}
-              {PRIORIDADES.map((p) => (
-                <option key={p.valor} value={p.valor}>
-                  {p.etiqueta} — resp. {p.respuesta}, resol. {p.resolucion}
-                </option>
-              ))}
+              {PRIORIDADES.map((p) => {
+                const plazos = plazosSla(p.valor, ticket.impacto, ticket.urgencia)
+                return (
+                  <option key={p.valor} value={p.valor}>
+                    {p.etiqueta} — resp. {plazos.respuesta}, resol. {plazos.resolucion}
+                  </option>
+                )
+              })}
             </select>
             {'prioridad' in cambios && (
               <small className="nota">Los vencimientos SLA se recalculan desde la creación.</small>

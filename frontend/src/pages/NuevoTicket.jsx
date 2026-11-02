@@ -9,6 +9,7 @@ import {
   TIPOS,
   URGENCIAS,
   calcularPrioridad,
+  plazosSla,
 } from '../lib/constants'
 import { formatoFecha, idCorto } from '../lib/format'
 import { useCarga } from '../lib/hooks'
@@ -32,6 +33,7 @@ export default function NuevoTicket() {
   const categoria = lista.find((c) => c.id === form.categoria_id)
   const prioridad = calcularPrioridad(form.impacto, form.urgencia)
   const infoPrioridad = PRIORIDADES.find((p) => p.valor === prioridad)
+  const plazos = plazosSla(prioridad, form.impacto, form.urgencia)
 
   // Al elegir un servicio se preseleccionan impacto y urgencia según su criticidad (Fase 1).
   const elegirCategoria = (id) => {
@@ -256,7 +258,7 @@ export default function NuevoTicket() {
                     <PrioridadBadge prioridad={prioridad} />
                     <span>
                       Prioridad <strong>{infoPrioridad.etiqueta.split('· ')[1]}</strong>: primera respuesta en{' '}
-                      {infoPrioridad.respuesta}, resolución objetivo en {infoPrioridad.resolucion}.
+                      {plazos.respuesta}, resolución objetivo en {plazos.resolucion}.
                     </span>
                   </div>
                 )}
