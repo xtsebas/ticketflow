@@ -32,6 +32,7 @@ cp .env.example .env
 | `SUPABASE_URL` | URL de la API del proyecto, p. ej. `https://<ref>.supabase.co` (no la cadena `postgresql://`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (Project Settings → API). Solo backend, nunca en el frontend |
 | `CORS_ORIGINS` | Orígenes permitidos separados por comas. Por defecto `http://localhost:5173,http://localhost:3000` |
+| `AUTH_SECRET` | Secreto con el que se firman los tokens de sesión de soporte. Si se deja vacío se genera uno aleatorio al arrancar y las sesiones se cierran cada vez que el servidor se reinicia. Defínelo para que persistan |
 
 El `.env` se lee desde el directorio donde se ejecuta el comando, así que usa siempre `backend/` como directorio de trabajo. La app arranca sin `.env`; en ese caso `/health` reporta `"supabase": false`.
 
@@ -114,13 +115,14 @@ Requiere haber ejecutado `db/seed.sql` (categorías) y tener el `.env` configura
 | Método | Ruta | Descripción |
 | --- | --- | --- |
 | GET | `/health` | Estado del servicio y si Supabase es alcanzable |
+| POST | `/auth/login` | Inicia sesión de soporte y devuelve un token |
 | GET | `/categorias` | Las 8 categorías, ordenadas por tipo y nombre |
 | POST | `/tickets` | Crea un ticket (estado `abierto`, nivel `N1`) |
-| GET | `/tickets` | Lista con filtros `estado`, `prioridad`, `nivel`, `categoria_id`, `tag` |
-| GET | `/tickets/{ticket_id}` | Detalle con categoría y comentarios; `rol=solicitante` (por defecto) oculta los internos |
-| PATCH | `/tickets/{ticket_id}` | Actualiza campos, valida transiciones de estado y registra escalamientos |
-| POST | `/tickets/{ticket_id}/comentarios` | Agrega un comentario (los internos solo los crea un agente) |
-| GET | `/estadisticas` | Conteos por categoría, tag, prioridad y estado |
+| GET | `/tickets` | Lista con filtros `estado`, `prioridad`, `nivel`, `categoria_id`, `tag`. Requiere sesión de soporte |
+| GET | `/tickets/{ticket_id}` | Detalle con categoría y comentarios; `rol=solicitante` (por defecto) oculta los internos. `rol=agente` requiere sesión de soporte |
+| PATCH | `/tickets/{ticket_id}` | Actualiza campos, valida transiciones de estado y registra escalamientos. Requiere sesión de soporte |
+| POST | `/tickets/{ticket_id}/comentarios` | Agrega un comentario (los internos solo los crea un agente). Con `autor_rol` `agente` requiere sesión de soporte |
+| GET | `/estadisticas` | Conteos por categoría, tag, prioridad y estado. Requiere sesión de soporte |
 
 Ejemplos (con el servidor en `localhost:8000`; reemplaza `$TICKET_ID` y `$CATEGORIA_ID` por UUID reales):
 
@@ -134,22 +136,40 @@ curl -X POST localhost:8000/tickets -H 'Content-Type: application/json' -d '{
   "categoria_id": "'$CATEGORIA_ID'", "tags": ["qr"],
   "impacto": "alto", "urgencia": "alta", "solicitante": "ana"}'
 
-curl 'localhost:8000/tickets?estado=abierto&prioridad=P1&nivel=N1&tag=qr'
+TOKEN=$(curl -s -X POST localhost:8000/auth/login -H 'Content-Type: application/json' \
+  -d '{"usuario": "soporte1", "contrasena": "<contraseña>"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
 
-curl "localhost:8000/tickets/$TICKET_ID?rol=agente"
+curl -H "Authorization: Bearer $TOKEN" 'localhost:8000/tickets?estado=abierto&prioridad=P1&nivel=N1&tag=qr'
 
-curl -X PATCH localhost:8000/tickets/$TICKET_ID -H 'Content-Type: application/json' \
+curl -H "Authorization: Bearer $TOKEN" "localhost:8000/tickets/$TICKET_ID?rol=agente"
+
+curl -X PATCH localhost:8000/tickets/$TICKET_ID -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"nivel": "N3", "motivo": "Requiere ingeniería"}'
 
-curl -X POST localhost:8000/tickets/$TICKET_ID/comentarios -H 'Content-Type: application/json' \
-  -d '{"autor": "soporte_1", "autor_rol": "agente", "contenido": "Revisando", "interno": true}'
+curl -X POST localhost:8000/tickets/$TICKET_ID/comentarios -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"autor": "soporte1", "autor_rol": "agente", "contenido": "Revisando", "interno": true}'
 
-curl localhost:8000/estadisticas
+curl -H "Authorization: Bearer $TOKEN" localhost:8000/estadisticas
 ```
 
 ## Contrato para el frontend
 
 Base: `http://localhost:8000`. Cuerpos y respuestas en JSON.
+
+### Sesión de soporte
+
+Hay cuatro usuarios de soporte: `soporte1`, `soporte2`, `soporte3` y `soporte4`. Sus contraseñas se guardan hasheadas (PBKDF2-SHA256 con sal propia) en `backend/app/repositories/usuarios.py`; no existe ninguna contraseña en texto plano en el repositorio. Para cambiar una:
+
+```
+cd backend
+python -c "from app.services.auth import hashear_contrasena; print(hashear_contrasena('nueva_contrasena'))"
+```
+
+y pegar el resultado en `USUARIOS_SOPORTE`.
+
+`POST /auth/login` recibe `{"usuario": "...", "contrasena": "..."}` y responde `{"token": "...", "usuario": "..."}`. El token dura 8 horas y se envía en el encabezado `Authorization: Bearer <token>`. Usuario o contraseña incorrectos responden 401 con el mismo mensaje en ambos casos.
+
+Exigen sesión de soporte: `GET /tickets`, `PATCH /tickets/{id}`, `GET /estadisticas`, `GET /tickets/{id}?rol=agente` y `POST /tickets/{id}/comentarios` con `autor_rol` `agente`. Sin token válido responden 401 `no_autenticado`. Crear tickets, ver categorías, ver un ticket como solicitante y comentar como solicitante siguen sin autenticación.
 
 ### Detalle del ticket y parámetro `rol`
 
@@ -177,6 +197,7 @@ Todos los errores tienen la forma `{"detalle": ..., "codigo": ...}`.
 | Estado | `codigo` | Cuándo ocurre |
 | --- | --- | --- |
 | 201 | (sin error) | `POST /tickets` y `POST /tickets/{id}/comentarios` crean el recurso y lo devuelven |
+| 401 | `no_autenticado` | Falta el token, es inválido o expiró, o las credenciales de `/auth/login` son incorrectas. `detalle` es un texto |
 | 404 | `no_encontrado` | El ticket o la categoría no existen, o la ruta no existe. `detalle` es un texto |
 | 409 | `conflicto` | Transición de estado no permitida. `detalle` es un texto, p. ej. `Transicion de estado no permitida: abierto a cerrado` |
 | 422 | `validacion_error` | Valor fuera de catálogo, UUID mal formado, cuerpo vacío en PATCH, contenido vacío o comentario interno de un solicitante. `detalle` es una lista de `{campo, mensaje, tipo}` |

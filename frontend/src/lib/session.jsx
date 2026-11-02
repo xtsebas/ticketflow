@@ -1,6 +1,5 @@
-// Rol y nombre de quien usa la app. No hay autenticación en el backend: el rol solo
-// cambia la vista (usuario del servicio o equipo de soporte) y el autor de los comentarios.
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { alExpirarSesion, guardarToken, obtenerToken } from './api'
 
 const SesionContext = createContext(null)
 
@@ -24,7 +23,8 @@ function guardar(clave, valor) {
 export function SesionProvider({ children }) {
   const [rol, setRol] = useState(() => leer('tf.rol', 'solicitante'))
   const [nombre, setNombre] = useState(() => leer('tf.nombre', ''))
-  const [nombreAgente, setNombreAgente] = useState(() => leer('tf.nombreAgente', 'soporte_1'))
+  const [token, setToken] = useState(obtenerToken)
+  const [nombreAgente, setNombreAgente] = useState(() => leer('tf.nombreAgente', ''))
   const [misTickets, setMisTickets] = useState(() => leer('tf.misTickets', []))
 
   useEffect(() => guardar('tf.rol', rol), [rol])
@@ -32,15 +32,38 @@ export function SesionProvider({ children }) {
   useEffect(() => guardar('tf.nombreAgente', nombreAgente), [nombreAgente])
   useEffect(() => guardar('tf.misTickets', misTickets), [misTickets])
 
+  const cerrarSesion = useCallback(() => {
+    guardarToken(null)
+    setToken(null)
+    setNombreAgente('')
+    setRol('solicitante')
+  }, [])
+
+  useEffect(() => {
+    alExpirarSesion(cerrarSesion)
+  }, [cerrarSesion])
+
+  const iniciarSesion = ({ token: nuevo, usuario }) => {
+    guardarToken(nuevo)
+    setToken(nuevo)
+    setNombreAgente(usuario)
+    setRol('agente')
+  }
+
+  const autenticado = Boolean(token && nombreAgente)
+  const esAgente = autenticado && rol === 'agente'
+
   const valor = {
     rol,
     setRol,
-    esAgente: rol === 'agente',
+    esAgente,
+    autenticado,
+    iniciarSesion,
+    cerrarSesion,
     nombre,
     setNombre,
     nombreAgente,
-    setNombreAgente,
-    autor: rol === 'agente' ? nombreAgente : nombre,
+    autor: esAgente ? nombreAgente : nombre,
     misTickets,
     recordarTicket: (id) => setMisTickets((lista) => [id, ...lista.filter((x) => x !== id)]),
     olvidarTicket: (id) => setMisTickets((lista) => lista.filter((x) => x !== id)),

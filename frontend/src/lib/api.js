@@ -22,18 +22,49 @@ function mensajeDeError(status, cuerpo) {
   return `Error ${status}`
 }
 
-async function request(path, { method = 'GET', body, params } = {}) {
+const CLAVE_TOKEN = 'tf.token'
+
+function leerTokenGuardado() {
+  try {
+    return window.localStorage.getItem(CLAVE_TOKEN)
+  } catch {
+    return null
+  }
+}
+
+let token = leerTokenGuardado()
+let alExpirar = () => {}
+
+export const obtenerToken = () => token
+
+export function guardarToken(nuevo) {
+  token = nuevo
+  try {
+    if (nuevo) window.localStorage.setItem(CLAVE_TOKEN, nuevo)
+    else window.localStorage.removeItem(CLAVE_TOKEN)
+  } catch {}
+}
+
+export function alExpirarSesion(funcion) {
+  alExpirar = funcion
+}
+
+async function request(path, { method = 'GET', body, params, autenticado = true } = {}) {
   const url = new URL(API_URL + path)
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v)
     })
   }
+  const enviaToken = autenticado && Boolean(token)
+  const headers = {}
+  if (body) headers['Content-Type'] = 'application/json'
+  if (enviaToken) headers.Authorization = `Bearer ${token}`
   let respuesta
   try {
     respuesta = await fetch(url, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers,
       body: body ? JSON.stringify(body) : undefined,
     })
   } catch {
@@ -41,12 +72,17 @@ async function request(path, { method = 'GET', body, params } = {}) {
   }
   const texto = await respuesta.text()
   const datos = texto ? JSON.parse(texto) : null
-  if (!respuesta.ok) throw new ApiError(respuesta.status, datos)
+  if (!respuesta.ok) {
+    if (respuesta.status === 401 && enviaToken) alExpirar()
+    throw new ApiError(respuesta.status, datos)
+  }
   return datos
 }
 
 export const api = {
   health: () => request('/health'),
+  login: (usuario, contrasena) =>
+    request('/auth/login', { method: 'POST', body: { usuario, contrasena }, autenticado: false }),
   categorias: () => request('/categorias'),
   listarTickets: (filtros = {}) => request('/tickets', { params: filtros }),
   obtenerTicket: (id, rol = 'solicitante') => request(`/tickets/${id}`, { params: { rol } }),

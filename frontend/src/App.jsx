@@ -1,18 +1,40 @@
+import { useEffect } from 'react'
 import Encabezado from './components/Encabezado'
 import { ToastProvider, Vacio } from './components/ui'
 import { coincide, Link, useRuta } from './lib/router'
-import { SesionProvider } from './lib/session'
+import { SesionProvider, useSesion } from './lib/session'
 import Estadisticas from './pages/Estadisticas'
+import Login from './pages/Login'
 import MisTickets from './pages/MisTickets'
 import NuevoTicket from './pages/NuevoTicket'
 import Tablero from './pages/Tablero'
 import TicketDetalle from './pages/TicketDetalle'
 
+function RutaSoporte({ children }) {
+  const { autenticado, esAgente, setRol } = useSesion()
+  useEffect(() => {
+    if (autenticado && !esAgente) setRol('agente')
+  }, [autenticado, esAgente, setRol])
+  return autenticado ? children : <Login />
+}
+
 function Rutas({ path }) {
   if (path === '/') return <NuevoTicket />
   if (path === '/mis-tickets') return <MisTickets />
-  if (path === '/soporte') return <Tablero />
-  if (path === '/estadisticas') return <Estadisticas />
+  if (path === '/soporte') {
+    return (
+      <RutaSoporte>
+        <Tablero />
+      </RutaSoporte>
+    )
+  }
+  if (path === '/estadisticas') {
+    return (
+      <RutaSoporte>
+        <Estadisticas />
+      </RutaSoporte>
+    )
+  }
   const detalle = coincide('/tickets/:id', path)
   if (detalle) return <TicketDetalle key={detalle.id} id={detalle.id} />
   return (
