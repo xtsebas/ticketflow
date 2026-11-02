@@ -70,17 +70,38 @@ Build de producción: `npm run build` (genera `frontend/dist/`) y `npm run previ
 
 ### Vistas
 
-No hay autenticación: el selector de rol del encabezado solo cambia la vista (usuario del servicio o equipo de soporte) y el autor de los comentarios. El rol y el nombre se guardan en el navegador.
+El selector Usuario / Soporte del encabezado cambia de vista. El usuario del servicio no inicia sesión: escribe su nombre, que queda como solicitante y autor de sus comentarios. Las vistas de soporte piden iniciar sesión con un usuario de soporte (ver "Sesión de soporte"); el token se guarda en el navegador y "Salir" cierra la sesión.
 
 | Ruta | Rol | Requerimiento | Descripción |
 | --- | --- | --- | --- |
 | `#/` | Ambos | 1 | Nuevo ticket: tipo, servicio del catálogo, impacto y urgencia sugeridos según la Fase 1, y prioridad y vencimientos SLA calculados |
 | `#/mis-tickets` | Usuario | 3 | Tickets creados desde este navegador y búsqueda por número |
-| `#/tickets/:id` | Ambos | 3 y 4 | Detalle con comentarios de seguimiento; soporte además ve notas internas y puede editar el ticket |
-| `#/soporte` | Soporte | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero |
-| `#/estadisticas` | Soporte | 5 | Gráficas por categoría, tipo, estado, prioridad, tag y día |
+| `#/tickets/:id` | Ambos | 3 y 4 | Detalle con comentarios de seguimiento; con sesión de soporte además se ven las notas internas y se puede editar el ticket |
+| `#/soporte` | Soporte (con sesión) | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero |
+| `#/estadisticas` | Soporte (con sesión) | 5 | Gráficas por categoría, tipo, estado, prioridad, tag y día |
+
+Sin sesión, `#/soporte` y `#/estadisticas` muestran el formulario de inicio de sesión.
 
 El router usa el hash (`#/ruta`), así que el build se puede servir como archivos estáticos sin configurar rutas en el servidor.
+
+## Docker
+
+Alternativa a levantar el backend y el frontend por separado. Requiere Docker con Compose y haber configurado la base de datos y `backend/.env` (secciones anteriores).
+
+```
+docker compose up --build
+```
+
+- Backend en http://localhost:8000: imagen de Python 3.12 con uvicorn; lee las variables de `backend/.env` (si no existe arranca igual, sin Supabase).
+- Frontend en http://localhost:5173: build de Vite servido con nginx.
+
+`VITE_API_URL` se fija al construir la imagen del frontend (por defecto `http://localhost:8000`). Para otro backend: `VITE_API_URL=https://... docker compose up --build`. Define `AUTH_SECRET` en `backend/.env` para que las sesiones de soporte sobrevivan a un reinicio del contenedor.
+
+Los datos de demostración se cargan desde el contenedor del backend:
+
+```
+docker compose exec backend python scripts/seed_demo.py --reset
+```
 
 ## Pruebas
 
@@ -269,12 +290,13 @@ backend/
     db/client.py         cliente Supabase perezoso
     repositories/        único acceso a datos
     schemas/             modelos Pydantic
-    services/            lógica de negocio (prioridad, sla, tickets)
+    services/            lógica de negocio (prioridad, sla, tickets, auth)
     api/routers/         endpoints
   db/                    schema.sql y seed.sql
   scripts/seed_demo.py   datos de demostración
   scripts/smoke_real.py  prueba de humo contra Supabase real
   tests/                 pruebas con repositorios simulados
+  Dockerfile             imagen del backend
 frontend/
   src/
     main.jsx             punto de entrada
@@ -284,6 +306,8 @@ frontend/
     lib/api.js           cliente del backend
     lib/constants.js     valores del dominio y criterios de la Fase 1
     lib/router.jsx       router por hash
-    lib/session.jsx      rol y nombre de quien usa la app
+    lib/session.jsx      rol, nombre y sesión de soporte
     styles.css           estilos
+docker/                  Dockerfile del frontend
+docker-compose.yml       backend y frontend con Docker
 ```
