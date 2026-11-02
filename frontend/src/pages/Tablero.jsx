@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { asignadoA, tomarTicket } from '../lib/asignacion'
-import { ESTADOS, NIVELES, PRIORIDADES } from '../lib/constants'
-import { estadoSla, fechaLocal, formatoFecha, haceCuanto, idCorto } from '../lib/format'
+import { ESTADOS, NIVELES, OLA_ESCALAMIENTO_P1_MIN, PRIORIDADES } from '../lib/constants'
+import { estadoSla, excedeOla, fechaLocal, formatoFecha, haceCuanto, idCorto } from '../lib/format'
 import { useAhora, useCarga } from '../lib/hooks'
 import { useSesion } from '../lib/session'
 import PanelTicket from '../components/PanelTicket'
@@ -98,6 +98,7 @@ export default function Tablero() {
     sinAsignar: enCurso.filter((t) => !t.responsable).length,
     vencidos: enCurso.filter((t) => estadoSla(t, ahora).vencido).length,
     p1: enCurso.filter((t) => t.prioridad === 'P1').length,
+    ola: enCurso.filter((t) => excedeOla(t, ahora)).length,
     mios: enCurso.filter((t) => agente && t.responsable === agente).length,
   }
   const hayFiltros = JSON.stringify(filtros) !== JSON.stringify(SIN_FILTROS)
@@ -148,7 +149,11 @@ export default function Tablero() {
         <div className={`metrica ${metricas.p1 ? 'peligro' : ''}`}>
           <span>Críticos (P1)</span>
           <strong>{metricas.p1}</strong>
-          <small>respuesta en 15 min</small>
+          <small>
+            {metricas.ola
+              ? `${metricas.ola} sin escalar a N2 tras ${OLA_ESCALAMIENTO_P1_MIN} min`
+              : 'respuesta en 15 min'}
+          </small>
         </div>
         <div className="metrica">
           <span>Asignados a mí</span>
@@ -284,6 +289,14 @@ export default function Tablero() {
                       <span className="tt-fila">
                         <NivelBadge nivel={t.nivel} />
                         {t.escalamiento_jerarquico && <span className="badge escalado">Escalado</span>}
+                        {excedeOla(t, ahora) && (
+                          <span
+                            className="aviso-ola"
+                            title={`OLA: un P1 se escala a N2 en ${OLA_ESCALAMIENTO_P1_MIN} min o menos`}
+                          >
+                            Escalar a N2
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td>

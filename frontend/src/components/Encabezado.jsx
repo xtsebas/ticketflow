@@ -10,6 +10,7 @@ const NAV_USUARIO = [
 const NAV_SOPORTE = [
   { to: '/soporte', texto: 'Tablero' },
   { to: '/estadisticas', texto: 'Estadísticas' },
+  { to: '/problemas', texto: 'Problemas' },
   { to: '/', texto: 'Nuevo ticket' },
 ]
 

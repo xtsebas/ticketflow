@@ -185,7 +185,7 @@ main { padding: 1.75rem 1.25rem 4rem; }
 .sla-riesgo { background: var(--riesgo-fondo); color: var(--riesgo); }
 .sla-vencido { background: var(--peligro-fondo); color: var(--peligro); }
 .sla-neutro { background: var(--superficie-2); color: var(--muted); }
-.aviso-ola { align-self: flex-start; font-size: 0.75rem; font-weight: 700; color: var(--peligro); background: var(--peligro-fondo); border-radius: 6px; padding: 0.15rem 0.45rem; }
+.aviso-ola { align-self: flex-start; white-space: nowrap; font-size: 0.75rem; font-weight: 700; color: var(--peligro); background: var(--peligro-fondo); border-radius: 6px; padding: 0.15rem 0.45rem; }
 .contador { background: var(--superficie-2); color: var(--muted); border-radius: 999px; padding: 0 0.5rem; font-size: 0.78rem; font-weight: 700; }
 
 /* ---------- Carga, error y vacío ---------- */
@@ -287,6 +287,18 @@ main { padding: 1.75rem 1.25rem 4rem; }
 .ancho-2 { grid-column: span 2; }
 .grafica > header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .grafica h2 { font-size: 1rem; }
+.rejilla-problemas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+.problema > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+.problema h2 { font-size: 1rem; }
+.problema h2 + p { margin: 0.2rem 0 0; }
+.problema h3 { font-size: 0.82rem; color: var(--muted); margin: 1rem 0 0.35rem; }
+.problema ul { margin: 0; padding-left: 1.1rem; font-size: 0.9rem; }
+.problema li + li { margin-top: 0.2rem; }
+.problema.candidato { border-left: 4px solid var(--peligro); }
+.aviso-problema { background: var(--peligro-fondo); color: var(--peligro); border-radius: 8px; padding: 0.6rem 0.8rem; margin-top: 0.75rem; font-size: 0.88rem; }
+.aviso-problema ul { margin-top: 0.25rem; }
+.problema ul.recientes-problema { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.recientes-problema li { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin: 0; }
 .leyenda-inline { display: flex; gap: 1rem; font-size: 0.83rem; color: var(--muted); }
 .punto { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 0.35rem; vertical-align: middle; }
 .barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
@@ -375,6 +387,7 @@ main { padding: 1.75rem 1.25rem 4rem; }
   .panel-agente { position: static; }
   .rejilla-graficas { grid-template-columns: 1fr; }
   .ancho-2 { grid-column: auto; }
+  .rejilla-problemas { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
