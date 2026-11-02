@@ -220,11 +220,12 @@ La prioridad se calcula al crear el ticket a partir de `impacto` y `urgencia`:
 | P2 | 30 minutos | 4 horas |
 | P3 | 1 hora | 8 horas |
 | P4 | 4 horas | 1 día hábil |
+| P4 (impacto bajo × urgencia baja) | 8 horas | 2 días hábiles |
 
+- Los plazos son los de la matriz de la Fase 1 (sección 6). Todas las celdas de una misma prioridad comparten plazos, salvo bajo × baja, que es P4 con plazos más largos.
 - Los minutos y las horas son tiempo transcurrido desde `creado_en`.
 - Un día hábil se calcula en la zona `America/Guatemala`: se avanza día por día contando solo de lunes a viernes, conservando la hora y sin feriados. Un P4 creado en viernes, sábado o domingo vence el lunes a la misma hora.
-- Provisional: el plazo de resolución de P4 (1 día hábil) es una decisión provisional.
-- `vence_respuesta_en` y `vence_resolucion_en` se guardan al crear y se recalculan si cambia la prioridad.
+- `vence_respuesta_en` y `vence_resolucion_en` se guardan al crear y se recalculan si cambia la prioridad. Al recalcular se usan el impacto y la urgencia del ticket: un ticket bajo × baja que soporte pasa a P4 recibe los plazos largos.
 
 ## Estructura
 

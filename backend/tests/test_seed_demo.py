@@ -48,7 +48,7 @@ def test_prioridad_y_vencimientos_vienen_de_los_servicios():
         esperada = calcular_prioridad(ticket["impacto"], ticket["urgencia"])
         assert ticket["prioridad"] == esperada.value
         creado = datetime.fromisoformat(ticket["creado_en"])
-        respuesta, resolucion = calcular_vencimientos(esperada, creado)
+        respuesta, resolucion = calcular_vencimientos(esperada, creado, ticket["impacto"], ticket["urgencia"])
         assert ticket["vence_respuesta_en"] == respuesta.isoformat()
         assert ticket["vence_resolucion_en"] == resolucion.isoformat()
 
