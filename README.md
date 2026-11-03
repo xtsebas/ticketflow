@@ -53,6 +53,24 @@ Causas raíz y solución temporal de cada incidente del catálogo, con el aviso 
 
 ![Inicio de sesión de soporte](docs/capturas/login.png)
 
+### Modo oscuro
+
+La interfaz sigue el tema del sistema operativo.
+
+![Nuevo ticket en modo oscuro](docs/capturas/nuevo-ticket-oscuro.png)
+
+![Tablero de soporte en modo oscuro](docs/capturas/tablero-oscuro.png)
+
+![Tablero con el panel del ticket en modo oscuro](docs/capturas/tablero-panel-oscuro.png)
+
+![Estadísticas en modo oscuro](docs/capturas/estadisticas-oscuro.png)
+
+![Gestión de problemas en modo oscuro](docs/capturas/problemas-oscuro.png)
+
+## Presentación
+
+La presentación de la Fase 2 está en [`docs/presentacion/TicketFlow-Fase2.pptx`](docs/presentacion/TicketFlow-Fase2.pptx). Cada diapositiva tiene notas del presentador con la sección de la Fase 1 que cubre, y la de la demo incluye el guion paso a paso.
+
 ## Entorno virtual
 
 Requiere Python 3.11 o superior.
