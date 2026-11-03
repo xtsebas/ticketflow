@@ -9,6 +9,50 @@ Monorepo:
 
 Para levantar todo en local: configura la base de datos, arranca el servidor del backend y luego el frontend (secciones siguientes).
 
+## Capturas
+
+### Nuevo ticket (usuario del servicio)
+
+El usuario elige el tipo y el servicio del catálogo. Impacto y urgencia vienen sugeridos según la criticidad del servicio, y la prioridad y el SLA se calculan con la matriz de la Fase 1.
+
+![Formulario de nuevo ticket](docs/capturas/nuevo-ticket.png)
+
+### Tablero de soporte
+
+Cola ordenada por prioridad y antigüedad, con métricas, filtros, estado del SLA y el aviso "Escalar a N2" para los P1 que llevan más de 10 min en N1.
+
+![Tablero de soporte](docs/capturas/tablero.png)
+
+Al hacer clic en un ticket se abre el panel lateral para atenderlo sin salir del tablero.
+
+![Tablero con el panel del ticket](docs/capturas/tablero-panel.png)
+
+### Detalle del ticket
+
+Vista del usuario: estado, prioridad, SLA y los comentarios de seguimiento, sin las notas internas.
+
+![Detalle del ticket como usuario](docs/capturas/detalle-usuario.png)
+
+Vista de soporte: además de las notas internas, el panel para tomar el ticket, cambiar su estado, prioridad y nivel, y escalarlo.
+
+![Detalle del ticket como soporte](docs/capturas/detalle-soporte.png)
+
+### Estadísticas
+
+Tickets por categoría, tipo, estado, prioridad, tag y día.
+
+![Estadísticas](docs/capturas/estadisticas.png)
+
+### Problemas
+
+Causas raíz y solución temporal de cada incidente del catálogo, con el aviso para abrir un registro de problema cuando el incidente es recurrente o de alto impacto.
+
+![Gestión de problemas](docs/capturas/problemas.png)
+
+### Acceso de soporte
+
+![Inicio de sesión de soporte](docs/capturas/login.png)
+
 ## Entorno virtual
 
 Requiere Python 3.11 o superior.
