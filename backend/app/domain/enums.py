@@ -46,3 +46,8 @@ class EscalamientoJerarquico(StrEnum):
 class AutorRol(StrEnum):
     solicitante = "solicitante"
     agente = "agente"
+
+
+class RolSesion(StrEnum):
+    agente = "agente"
+    cliente = "cliente"

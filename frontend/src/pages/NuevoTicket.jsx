@@ -4,7 +4,9 @@ import { api } from '../lib/api'
 import {
   HORARIO,
   IMPACTOS,
+  PERFILES,
   PRIORIDADES,
+  SERVICIOS_USUARIO,
   SUGERENCIA_POR_CATEGORIA,
   TIPOS,
   URGENCIAS,
@@ -16,12 +18,14 @@ import { useCarga } from '../lib/hooks'
 import { Link } from '../lib/router'
 import { useSesion } from '../lib/session'
 import { Cargando, ErrorBox, PrioridadBadge, TagInput } from '../components/ui'
+import { FormularioLogin } from './Login'
 
 const VACIO = { tipo: '', categoria_id: '', titulo: '', descripcion: '', tags: [], impacto: '', urgencia: '' }
 
 export default function NuevoTicket() {
   const sesion = useSesion()
   const categorias = useCarga(() => api.categorias())
+  const [perfil, setPerfil] = useState('')
   const [form, setForm] = useState(VACIO)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
@@ -29,8 +33,20 @@ export default function NuevoTicket() {
 
   const set = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }))
   const lista = categorias.datos ?? []
-  const delTipo = lista.filter((c) => c.tipo === form.tipo)
-  const categoria = lista.find((c) => c.id === form.categoria_id)
+  const esUsuario = perfil === 'usuario'
+  const salto = esUsuario ? 1 : 0
+  const clienteHabilitado = perfil === 'cliente' && (sesion.esCliente || sesion.sesionAgente)
+  const necesitaLogin = perfil === 'cliente' && !clienteHabilitado
+  const servicios = esUsuario
+    ? lista.filter((c) => SERVICIOS_USUARIO.includes(c.slug))
+    : lista.filter((c) => c.tipo === form.tipo)
+  const mostrarServicios = esUsuario || (clienteHabilitado && form.tipo)
+  const categoria = esUsuario || clienteHabilitado ? lista.find((c) => c.id === form.categoria_id) : undefined
+
+  const elegirPerfil = (valor) => {
+    setPerfil(valor)
+    setForm(VACIO)
+  }
   const prioridad = calcularPrioridad(form.impacto, form.urgencia)
   const infoPrioridad = PRIORIDADES.find((p) => p.valor === prioridad)
   const plazos = plazosSla(prioridad, form.impacto, form.urgencia)
@@ -126,30 +142,58 @@ export default function NuevoTicket() {
       {categorias.datos && (
         <form className="tarjeta formulario" onSubmit={enviar}>
           <fieldset>
-            <legend>1. Tipo de ticket</legend>
+            <legend>1. ¿Quién reporta?</legend>
             <div className="opciones-grandes">
-              {TIPOS.map((t) => (
-                <label key={t.valor} className={`opcion-grande ${form.tipo === t.valor ? 'sel' : ''}`}>
+              {PERFILES.map((p) => (
+                <label key={p.valor} className={`opcion-grande ${perfil === p.valor ? 'sel' : ''}`}>
                   <input
                     type="radio"
-                    name="tipo"
-                    value={t.valor}
-                    checked={form.tipo === t.valor}
-                    onChange={() => setForm((f) => ({ ...f, tipo: t.valor, categoria_id: '' }))}
+                    name="perfil"
+                    value={p.valor}
+                    checked={perfil === p.valor}
+                    onChange={() => elegirPerfil(p.valor)}
                     required
                   />
-                  <strong>{t.etiqueta}</strong>
-                  <span>{t.ayuda}</span>
+                  <strong>{p.etiqueta}</strong>
+                  <span>{p.ayuda}</span>
                 </label>
               ))}
             </div>
           </fieldset>
 
-          {form.tipo && (
+          {clienteHabilitado && (
             <fieldset>
-              <legend>2. Servicio afectado</legend>
+              <legend>2. Tipo de ticket</legend>
+              <div className="opciones-grandes">
+                {TIPOS.map((t) => (
+                  <label key={t.valor} className={`opcion-grande ${form.tipo === t.valor ? 'sel' : ''}`}>
+                    <input
+                      type="radio"
+                      name="tipo"
+                      value={t.valor}
+                      checked={form.tipo === t.valor}
+                      onChange={() => setForm((f) => ({ ...f, tipo: t.valor, categoria_id: '' }))}
+                      required
+                    />
+                    <strong>{t.etiqueta}</strong>
+                    <span>{t.ayuda}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
+          {mostrarServicios && (
+            <fieldset>
+              <legend>{3 - salto}. Servicio afectado</legend>
+              {esUsuario && (
+                <p className="muted pequeno">
+                  Como usuario puedes reportar aquí lo relacionado con tu entrada: QR rechazado en la puerta, reembolso o
+                  reenvío de tu ticket.
+                </p>
+              )}
               <div className="lista-categorias">
-                {delTipo.map((c) => (
+                {servicios.map((c) => (
                   <label key={c.id} className={`opcion-cat ${form.categoria_id === c.id ? 'sel' : ''}`}>
                     <input
                       type="radio"
@@ -172,7 +216,7 @@ export default function NuevoTicket() {
           {categoria && (
             <>
               <fieldset>
-                <legend>3. Detalles</legend>
+                <legend>{4 - salto}. Detalles</legend>
                 <label className="campo">
                   <span>Título</span>
                   <input
@@ -200,18 +244,19 @@ export default function NuevoTicket() {
                   <TagInput id="tags" valor={form.tags} onChange={(v) => set('tags', v)} />
                 </label>
                 <label className="campo">
-                  <span>Tu usuario o correo</span>
+                  <span>{sesion.esCliente ? 'Cliente' : 'Tu usuario o correo'}</span>
                   <input
                     value={sesion.nombre}
                     onChange={(e) => sesion.setNombre(e.target.value)}
                     placeholder="p. ej. ana.lopez@correo.com"
+                    readOnly={sesion.esCliente}
                     required
                   />
                 </label>
               </fieldset>
 
               <fieldset>
-                <legend>4. ¿Qué tan grave es?</legend>
+                <legend>{5 - salto}. ¿Qué tan grave es?</legend>
                 <p className="muted pequeno">
                   Sugerimos valores según el servicio elegido; ajústalos si tu caso es distinto.
                 </p>
@@ -273,6 +318,13 @@ export default function NuevoTicket() {
             </>
           )}
         </form>
+      )}
+
+      {categorias.datos && necesitaLogin && (
+        <div className="bloque-login">
+          <p className="muted pequeno">Inicia sesión con la cuenta de tu empresa para reportar como cliente.</p>
+          <FormularioLogin rolEsperado="cliente" />
+        </div>
       )}
     </div>
   )

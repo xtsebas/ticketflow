@@ -24,18 +24,21 @@ export function SesionProvider({ children }) {
   const [rol, setRol] = useState(() => leer('tf.rol', 'solicitante'))
   const [nombre, setNombre] = useState(() => leer('tf.nombre', ''))
   const [token, setToken] = useState(obtenerToken)
-  const [nombreAgente, setNombreAgente] = useState(() => leer('tf.nombreAgente', ''))
+  const [usuarioSesion, setUsuarioSesion] = useState(() => leer('tf.usuarioSesion', ''))
+  const [rolSesion, setRolSesion] = useState(() => leer('tf.rolSesion', ''))
   const [misTickets, setMisTickets] = useState(() => leer('tf.misTickets', []))
 
   useEffect(() => guardar('tf.rol', rol), [rol])
   useEffect(() => guardar('tf.nombre', nombre), [nombre])
-  useEffect(() => guardar('tf.nombreAgente', nombreAgente), [nombreAgente])
+  useEffect(() => guardar('tf.usuarioSesion', usuarioSesion), [usuarioSesion])
+  useEffect(() => guardar('tf.rolSesion', rolSesion), [rolSesion])
   useEffect(() => guardar('tf.misTickets', misTickets), [misTickets])
 
   const cerrarSesion = useCallback(() => {
     guardarToken(null)
     setToken(null)
-    setNombreAgente('')
+    setUsuarioSesion('')
+    setRolSesion('')
     setRol('solicitante')
   }, [])
 
@@ -43,27 +46,34 @@ export function SesionProvider({ children }) {
     alExpirarSesion(cerrarSesion)
   }, [cerrarSesion])
 
-  const iniciarSesion = ({ token: nuevo, usuario }) => {
+  const iniciarSesion = ({ token: nuevo, usuario, rol: rolCuenta }) => {
     guardarToken(nuevo)
     setToken(nuevo)
-    setNombreAgente(usuario)
-    setRol('agente')
+    setUsuarioSesion(usuario)
+    setRolSesion(rolCuenta)
+    setRol(rolCuenta === 'agente' ? 'agente' : 'solicitante')
   }
 
-  const autenticado = Boolean(token && nombreAgente)
-  const esAgente = autenticado && rol === 'agente'
+  const autenticado = Boolean(token && usuarioSesion && rolSesion)
+  const sesionAgente = autenticado && rolSesion === 'agente'
+  const esCliente = autenticado && rolSesion === 'cliente'
+  const esAgente = sesionAgente && rol === 'agente'
+  const nombreAgente = sesionAgente ? usuarioSesion : ''
+  const nombreVisible = esCliente ? usuarioSesion : nombre
 
   const valor = {
     rol,
     setRol,
     esAgente,
+    esCliente,
+    sesionAgente,
     autenticado,
     iniciarSesion,
     cerrarSesion,
-    nombre,
+    nombre: nombreVisible,
     setNombre,
     nombreAgente,
-    autor: esAgente ? nombreAgente : nombre,
+    autor: esAgente ? nombreAgente : nombreVisible,
     misTickets,
     recordarTicket: (id) => setMisTickets((lista) => [id, ...lista.filter((x) => x !== id)]),
     olvidarTicket: (id) => setMisTickets((lista) => lista.filter((x) => x !== id)),

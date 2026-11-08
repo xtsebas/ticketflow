@@ -11,8 +11,8 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
 @router.post("", response_model=TicketOut, status_code=201)
-def crear_ticket(datos: TicketCreate):
-    return servicio.crear_ticket(datos)
+def crear_ticket(datos: TicketCreate, usuario: str | None = Depends(usuario_actual)):
+    return servicio.crear_ticket(datos, usuario)
 
 
 @router.get("", response_model=list[TicketListadoOut], dependencies=[Depends(requiere_agente)])

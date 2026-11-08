@@ -13,7 +13,7 @@ Para levantar todo en local: configura la base de datos, arranca el servidor del
 
 ### Nuevo ticket (usuario del servicio)
 
-El usuario elige el tipo y el servicio del catálogo. Impacto y urgencia vienen sugeridos según la criticidad del servicio, y la prioridad y el SLA se calculan con la matriz de la Fase 1.
+Primero se indica si quien reporta es usuario o cliente. El usuario solo ve QR rechazado en puerta, reembolso o cancelación de entrada y reenvío de ticket digital (`SERVICIOS_USUARIO` en `frontend/src/lib/constants.js`); el cliente elige el tipo y ve todo el catálogo. Impacto y urgencia vienen sugeridos según la criticidad del servicio, y la prioridad y el SLA se calculan con la matriz de la Fase 1.
 
 ![Formulario de nuevo ticket](docs/capturas/nuevo-ticket.png)
 
@@ -94,7 +94,7 @@ cp .env.example .env
 | `SUPABASE_URL` | URL de la API del proyecto, p. ej. `https://<ref>.supabase.co` (no la cadena `postgresql://`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (Project Settings → API). Solo backend, nunca en el frontend |
 | `CORS_ORIGINS` | Orígenes permitidos separados por comas. Por defecto `http://localhost:5173,http://localhost:3000` |
-| `AUTH_SECRET` | Secreto con el que se firman los tokens de sesión de soporte. Si se deja vacío se genera uno aleatorio al arrancar y las sesiones se cierran cada vez que el servidor se reinicia. Defínelo para que persistan |
+| `AUTH_SECRET` | Secreto con el que se firman los tokens de sesión (soporte y clientes). Si se deja vacío se genera uno aleatorio al arrancar y las sesiones se cierran cada vez que el servidor se reinicia. Defínelo para que persistan |
 
 El `.env` se lee desde el directorio donde se ejecuta el comando, así que usa siempre `backend/` como directorio de trabajo. La app arranca sin `.env`; en ese caso `/health` reporta `"supabase": false`.
 
@@ -132,11 +132,11 @@ Build de producción: `npm run build` (genera `frontend/dist/`) y `npm run previ
 
 ### Vistas
 
-El selector Usuario / Soporte del encabezado cambia de vista. El usuario del servicio no inicia sesión: escribe su nombre, que queda como solicitante y autor de sus comentarios. Las vistas de soporte piden iniciar sesión con un usuario de soporte (ver "Sesión de soporte"); el token se guarda en el navegador y "Salir" cierra la sesión.
+El selector Usuario / Soporte del encabezado cambia de vista. El usuario que reporta un problema durante un evento no inicia sesión: escribe su nombre, que queda como solicitante y autor de sus comentarios. El cliente (promotora que contrató el servicio) inicia sesión con su cuenta al elegir "Cliente" en el formulario de nuevo ticket, y su cuenta queda fija como solicitante. Las vistas de soporte piden iniciar sesión con un usuario de soporte (ver "Sesión de soporte y de clientes"); el token se guarda en el navegador y "Salir" cierra la sesión.
 
 | Ruta | Rol | Requerimiento | Descripción |
 | --- | --- | --- | --- |
-| `#/` | Ambos | 1 | Nuevo ticket: tipo, servicio del catálogo, impacto y urgencia sugeridos según la Fase 1, y prioridad y vencimientos SLA calculados |
+| `#/` | Ambos | 1 | Nuevo ticket: usuario o cliente, tipo, servicio del catálogo (el usuario solo ve los de evento), impacto y urgencia sugeridos según la Fase 1, y prioridad y vencimientos SLA calculados |
 | `#/mis-tickets` | Usuario | 3 | Tickets creados desde este navegador y búsqueda por número |
 | `#/tickets/:id` | Ambos | 3 y 4 | Detalle con comentarios de seguimiento; con sesión de soporte además se ven las notas internas y se puede editar el ticket |
 | `#/soporte` | Soporte (con sesión) | 2 y 4 | Tablero: cola ordenada por prioridad y antigüedad, filtros, métricas y panel lateral para atender sin salir del tablero. Marca con "Escalar a N2" los P1 que siguen en N1 después de 10 min (OLA de la Fase 1, sección 7) |
@@ -199,9 +199,9 @@ Requiere haber ejecutado `db/seed.sql` (categorías) y tener el `.env` configura
 | Método | Ruta | Descripción |
 | --- | --- | --- |
 | GET | `/health` | Estado del servicio y si Supabase es alcanzable |
-| POST | `/auth/login` | Inicia sesión de soporte y devuelve un token |
+| POST | `/auth/login` | Inicia sesión de soporte o de cliente y devuelve un token y el `rol` de la cuenta |
 | GET | `/categorias` | Las 8 categorías, ordenadas por tipo y nombre |
-| POST | `/tickets` | Crea un ticket (estado `abierto`, nivel `N1`) |
+| POST | `/tickets` | Crea un ticket (estado `abierto`, nivel `N1`). Sin sesión solo permite los servicios de usuario (`SERVICIOS_USUARIO`); el resto exige sesión de cliente o de soporte. Con sesión de cliente el solicitante es siempre su cuenta |
 | GET | `/tickets` | Lista con filtros `estado`, `prioridad`, `nivel`, `categoria_id`, `tag`. Requiere sesión de soporte |
 | GET | `/tickets/{ticket_id}` | Detalle con categoría y comentarios; `rol=solicitante` (por defecto) oculta los internos. `rol=agente` requiere sesión de soporte |
 | PATCH | `/tickets/{ticket_id}` | Actualiza campos, valida transiciones de estado y registra escalamientos. Requiere sesión de soporte |
@@ -240,20 +240,22 @@ curl -H "Authorization: Bearer $TOKEN" localhost:8000/estadisticas
 
 Base: `http://localhost:8000`. Cuerpos y respuestas en JSON.
 
-### Sesión de soporte
+### Sesión de soporte y de clientes
 
-Hay cuatro usuarios de soporte: `soporte1`, `soporte2`, `soporte3` y `soporte4`. Sus contraseñas se guardan hasheadas (PBKDF2-SHA256 con sal propia) en `backend/app/repositories/usuarios.py`; no existe ninguna contraseña en texto plano en el repositorio. Para cambiar una:
+Hay cuatro usuarios de soporte, `soporte1` a `soporte4`, y cinco cuentas de cliente, una por promotora: `asa_promotions`, `arceyut_producciones`, `show_business_guatemala`, `promotora_2_mundos` y `epica_eventos`. Sus contraseñas se guardan hasheadas (PBKDF2-SHA256 con sal propia) en `backend/app/repositories/usuarios.py`; no existe ninguna contraseña en texto plano en el repositorio. Para cambiar una:
 
 ```
 cd backend
 python -c "from app.services.auth import hashear_contrasena; print(hashear_contrasena('nueva_contrasena'))"
 ```
 
-y pegar el resultado en `USUARIOS_SOPORTE`.
+y pegar el resultado en `USUARIOS_SOPORTE` o en `USUARIOS_CLIENTE`, según la cuenta.
 
-`POST /auth/login` recibe `{"usuario": "...", "contrasena": "..."}` y responde `{"token": "...", "usuario": "..."}`. El token dura 8 horas y se envía en el encabezado `Authorization: Bearer <token>`. Usuario o contraseña incorrectos responden 401 con el mismo mensaje en ambos casos.
+`POST /auth/login` recibe `{"usuario": "...", "contrasena": "..."}` y responde `{"token": "...", "usuario": "...", "rol": "agente" | "cliente"}`. El token dura 8 horas y se envía en el encabezado `Authorization: Bearer <token>`. Usuario o contraseña incorrectos responden 401 con el mismo mensaje en ambos casos. El rol sale de la lista a la que pertenece la cuenta, no del token.
 
-Exigen sesión de soporte: `GET /tickets`, `PATCH /tickets/{id}`, `GET /estadisticas`, `GET /tickets/{id}?rol=agente` y `POST /tickets/{id}/comentarios` con `autor_rol` `agente`. Sin token válido responden 401 `no_autenticado`. Crear tickets, ver categorías, ver un ticket como solicitante y comentar como solicitante siguen sin autenticación.
+Exigen sesión de soporte: `GET /tickets`, `PATCH /tickets/{id}`, `GET /estadisticas`, `GET /tickets/{id}?rol=agente` y `POST /tickets/{id}/comentarios` con `autor_rol` `agente`. Una cuenta de cliente no sirve para estos endpoints. Sin token válido responden 401 `no_autenticado`.
+
+`POST /tickets` sin sesión solo acepta los servicios de `SERVICIOS_USUARIO` (`backend/app/domain/servicios.py`, hoy `qr_rechazado_en_puerta`, `reembolso_cancelacion_entrada` y `reenvio_ticket_digital`); los demás exigen sesión de cliente o de soporte. Cuando quien crea el ticket es un cliente, el backend ignora el `solicitante` del cuerpo y guarda su cuenta. Ver categorías, ver un ticket como solicitante y comentar como solicitante siguen sin autenticación. La lista del frontend (`SERVICIOS_USUARIO` en `frontend/src/lib/constants.js`) debe coincidir con la del backend.
 
 ### Detalle del ticket y parámetro `rol`
 
@@ -281,7 +283,7 @@ Todos los errores tienen la forma `{"detalle": ..., "codigo": ...}`.
 | Estado | `codigo` | Cuándo ocurre |
 | --- | --- | --- |
 | 201 | (sin error) | `POST /tickets` y `POST /tickets/{id}/comentarios` crean el recurso y lo devuelven |
-| 401 | `no_autenticado` | Falta el token, es inválido o expiró, o las credenciales de `/auth/login` son incorrectas. `detalle` es un texto |
+| 401 | `no_autenticado` | Falta el token, es inválido o expiró, la cuenta no tiene el rol que exige el endpoint, o las credenciales de `/auth/login` son incorrectas. `detalle` es un texto |
 | 404 | `no_encontrado` | El ticket o la categoría no existen, o la ruta no existe. `detalle` es un texto |
 | 409 | `conflicto` | Transición de estado no permitida. `detalle` es un texto, p. ej. `Transicion de estado no permitida: abierto a cerrado` |
 | 422 | `validacion_error` | Valor fuera de catálogo, UUID mal formado, cuerpo vacío en PATCH, contenido vacío o comentario interno de un solicitante. `detalle` es una lista de `{campo, mensaje, tipo}` |
@@ -369,7 +371,7 @@ frontend/
     lib/api.js           cliente del backend
     lib/constants.js     valores del dominio y criterios de la Fase 1
     lib/router.jsx       router por hash
-    lib/session.jsx      rol, nombre y sesión de soporte
+    lib/session.jsx      rol, nombre y sesión (soporte o cliente)
     styles.css           estilos
 docker/                  Dockerfile del frontend
 docker-compose.yml       backend y frontend con Docker

@@ -6,6 +6,7 @@ import time
 
 from app.core.config import get_settings
 from app.core.errors import NoAutenticado
+from app.domain.enums import RolSesion
 from app.repositories import usuarios as repo_usuarios
 
 ALGORITMO = "pbkdf2_sha256"
@@ -63,10 +64,14 @@ def iniciar_sesion(usuario: str, contrasena: str) -> dict:
     valida = verificar_contrasena(contrasena, almacenado or HASH_INEXISTENTE)
     if almacenado is None or not valida:
         raise NoAutenticado("Usuario o contrasena incorrectos")
-    return {"token": crear_token(usuario), "usuario": usuario}
+    return {"token": crear_token(usuario), "usuario": usuario, "rol": repo_usuarios.obtener_rol(usuario)}
+
+
+def rol_de(usuario: str | None) -> RolSesion | None:
+    return None if usuario is None else repo_usuarios.obtener_rol(usuario)
 
 
 def exigir_agente(usuario: str | None) -> str:
-    if usuario is None:
+    if rol_de(usuario) != RolSesion.agente:
         raise NoAutenticado("Se requiere iniciar sesion como soporte")
     return usuario

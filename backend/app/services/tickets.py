@@ -2,15 +2,16 @@ from collections import Counter
 from datetime import datetime, timezone
 from uuid import UUID
 
-from app.core.errors import RecursoNoEncontrado, TransicionInvalida
-from app.domain.enums import AutorRol, Estado, Nivel, Prioridad
+from app.core.errors import NoAutenticado, RecursoNoEncontrado, TransicionInvalida
+from app.domain.enums import AutorRol, Estado, Nivel, Prioridad, RolSesion
+from app.domain.servicios import SERVICIOS_USUARIO
 from app.repositories import categorias as repo_categorias
 from app.repositories import comentarios as repo_comentarios
 from app.repositories import estadisticas as repo_estadisticas
 from app.repositories import tickets as repo_tickets
 from app.schemas.comentario import ComentarioCreate
 from app.schemas.ticket import TicketCreate, TicketUpdate
-from app.services.auth import exigir_agente
+from app.services.auth import exigir_agente, rol_de
 from app.services.prioridad import calcular_prioridad
 from app.services.sla import calcular_vencimientos
 
@@ -41,10 +42,16 @@ def _vencimientos(prioridad: str, creado_en: datetime, impacto: str, urgencia: s
     return {"vence_respuesta_en": respuesta.isoformat(), "vence_resolucion_en": resolucion.isoformat()}
 
 
-def crear_ticket(datos: TicketCreate) -> dict:
-    if repo_categorias.obtener(datos.categoria_id) is None:
+def crear_ticket(datos: TicketCreate, usuario: str | None = None) -> dict:
+    categoria = repo_categorias.obtener(datos.categoria_id)
+    if categoria is None:
         raise RecursoNoEncontrado("Categoria no encontrada")
+    rol = rol_de(usuario)
+    if rol is None and categoria["slug"] not in SERVICIOS_USUARIO:
+        raise NoAutenticado("Se requiere iniciar sesion como cliente")
     nuevo = datos.model_dump(mode="json")
+    if rol == RolSesion.cliente:
+        nuevo["solicitante"] = usuario
     nuevo["estado"] = Estado.abierto.value
     nuevo["nivel"] = Nivel.N1.value
     creado_en = datetime.now(timezone.utc)

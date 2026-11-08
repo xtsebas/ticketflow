@@ -210,6 +210,13 @@ export const TIPOS = [
   { valor: 'solicitud', etiqueta: 'Solicitud', ayuda: 'Necesito que el equipo haga algo por mí' },
 ]
 
+export const PERFILES = [
+  { valor: 'usuario', etiqueta: 'Usuario', ayuda: 'Asisto a un evento y necesito ayuda inmediata' },
+  { valor: 'cliente', etiqueta: 'Cliente', ayuda: 'Contraté el servicio de TicketFlow para mis eventos' },
+]
+
+export const SERVICIOS_USUARIO = ['qr_rechazado_en_puerta', 'reembolso_cancelacion_entrada', 'reenvio_ticket_digital']
+
 export function etiqueta(lista, valor) {
   return lista.find((x) => x.valor === valor)?.etiqueta ?? valor
 }
