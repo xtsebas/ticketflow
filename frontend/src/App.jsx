@@ -12,11 +12,11 @@ import Tablero from './pages/Tablero'
 import TicketDetalle from './pages/TicketDetalle'
 
 function RutaSoporte({ children }) {
-  const { autenticado, esAgente, setRol } = useSesion()
+  const { sesionAgente, esAgente, setRol } = useSesion()
   useEffect(() => {
-    if (autenticado && !esAgente) setRol('agente')
-  }, [autenticado, esAgente, setRol])
-  return autenticado ? children : <Login />
+    if (sesionAgente && !esAgente) setRol('agente')
+  }, [sesionAgente, esAgente, setRol])
+  return sesionAgente ? children : <Login />
 }
 
 function Rutas({ path }) {

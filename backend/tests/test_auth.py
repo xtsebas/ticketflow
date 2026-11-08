@@ -8,12 +8,13 @@ from app.repositories import categorias as repo_categorias
 from app.repositories import comentarios as repo_comentarios
 from app.repositories import estadisticas as repo_estadisticas
 from app.repositories import tickets as repo_tickets
-from app.repositories.usuarios import USUARIOS_SOPORTE
+from app.repositories.usuarios import USUARIOS_CLIENTE, USUARIOS_SOPORTE
 from app.services import auth as servicio
 
 client = TestClient(app)
 
 CONTRASENA = "soporte2026"
+CONTRASENA_CLIENTE = "cliente2026"
 CATEGORIA_ID = "00000000-0000-0000-0000-000000000001"
 TICKET_ID = "00000000-0000-0000-0000-0000000000a1"
 AHORA = "2026-01-01T10:00:00Z"
@@ -25,8 +26,12 @@ TICKET = {
     "vence_resolucion_en": None, "creado_en": AHORA, "actualizado_en": AHORA,
 }
 CATEGORIA = {
-    "id": CATEGORIA_ID, "slug": "qr", "nombre": "QR", "tipo": "incidente",
+    "id": CATEGORIA_ID, "slug": "qr_rechazado_en_puerta", "nombre": "QR", "tipo": "incidente",
     "descripcion": "desc", "quien_reporta": "Usuario/asistente",
+}
+CATEGORIA_CLIENTE = {
+    "id": CATEGORIA_ID, "slug": "pago_no_procesado_cobro_duplicado", "nombre": "Pago", "tipo": "incidente",
+    "descripcion": "desc", "quien_reporta": "Cliente",
 }
 NUEVO = {
     "titulo": "QR rechazado", "descripcion": "No entra", "categoria_id": CATEGORIA_ID, "tags": ["qr"],
@@ -196,3 +201,96 @@ def test_sesion_se_comprueba_antes_que_la_existencia_del_ticket(monkeypatch):
     monkeypatch.setattr(repo_tickets, "obtener", lambda _id: None)
     detalle_401(client.get(f"/tickets/{TICKET_ID}?rol=agente"))
     assert client.get(f"/tickets/{TICKET_ID}?rol=agente", headers=cabecera()).status_code == 404
+
+
+def test_cinco_clientes_con_hash_y_sal_propia():
+    assert list(USUARIOS_CLIENTE) == [
+        "asa_promotions",
+        "arceyut_producciones",
+        "show_business_guatemala",
+        "promotora_2_mundos",
+        "epica_eventos",
+    ]
+    assert len(set(USUARIOS_CLIENTE.values())) == 5
+    for almacenado in USUARIOS_CLIENTE.values():
+        assert almacenado.startswith("pbkdf2_sha256$")
+        assert CONTRASENA_CLIENTE not in almacenado
+        assert servicio.verificar_contrasena(CONTRASENA_CLIENTE, almacenado)
+        assert not servicio.verificar_contrasena(CONTRASENA, almacenado)
+
+
+def test_usuarios_de_soporte_y_de_clientes_no_se_cruzan():
+    assert not set(USUARIOS_SOPORTE) & set(USUARIOS_CLIENTE)
+
+
+def test_rol_de_cada_cuenta():
+    assert servicio.rol_de("soporte1") == "agente"
+    assert servicio.rol_de("epica_eventos") == "cliente"
+    assert servicio.rol_de("fantasma") is None
+    assert servicio.rol_de(None) is None
+
+
+@pytest.mark.parametrize("usuario", list(USUARIOS_CLIENTE))
+def test_login_de_cliente(usuario):
+    respuesta = client.post("/auth/login", json={"usuario": usuario, "contrasena": CONTRASENA_CLIENTE})
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["usuario"] == usuario
+    assert cuerpo["rol"] == "cliente"
+    assert servicio.validar_token(cuerpo["token"]) == usuario
+
+
+@pytest.mark.parametrize("usuario", list(USUARIOS_SOPORTE))
+def test_login_de_soporte_indica_el_rol_agente(usuario):
+    respuesta = client.post("/auth/login", json={"usuario": usuario, "contrasena": CONTRASENA})
+    assert respuesta.status_code == 200
+    assert respuesta.json()["rol"] == "agente"
+
+
+def test_la_contrasena_de_un_grupo_no_sirve_en_el_otro():
+    detalle_401(client.post("/auth/login", json={"usuario": "soporte1", "contrasena": CONTRASENA_CLIENTE}))
+    detalle_401(client.post("/auth/login", json={"usuario": "epica_eventos", "contrasena": CONTRASENA}))
+
+
+@pytest.mark.parametrize("metodo,ruta,cuerpo", PROTEGIDOS)
+def test_endpoints_de_soporte_rechazan_a_un_cliente(metodo, ruta, cuerpo):
+    detalle_401(client.request(metodo, ruta, json=cuerpo, headers=cabecera("asa_promotions")))
+
+
+def test_sin_sesion_solo_se_crean_servicios_de_evento(monkeypatch):
+    respuesta = client.post("/tickets", json=NUEVO)
+    assert respuesta.status_code == 201
+    assert respuesta.json()["solicitante"] == "ana"
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: CATEGORIA_CLIENTE)
+    detalle_401(client.post("/tickets", json=NUEVO))
+
+
+@pytest.mark.parametrize("slug", ["qr_rechazado_en_puerta", "reembolso_cancelacion_entrada", "reenvio_ticket_digital"])
+def test_sin_sesion_se_crea_cada_servicio_de_usuario(monkeypatch, slug):
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: {**CATEGORIA, "slug": slug})
+    assert client.post("/tickets", json=NUEVO).status_code == 201
+
+
+def test_token_invalido_se_trata_como_sin_sesion(monkeypatch):
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: CATEGORIA_CLIENTE)
+    detalle_401(client.post("/tickets", json=NUEVO, headers={"Authorization": "Bearer basura"}))
+
+
+@pytest.mark.parametrize("categoria", [CATEGORIA, CATEGORIA_CLIENTE])
+def test_cliente_crea_cualquier_servicio_y_queda_como_solicitante(monkeypatch, categoria):
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: categoria)
+    respuesta = client.post("/tickets", json={**NUEVO, "solicitante": "otra_persona"}, headers=cabecera("epica_eventos"))
+    assert respuesta.status_code == 201
+    assert respuesta.json()["solicitante"] == "epica_eventos"
+
+
+def test_soporte_crea_cualquier_servicio_sin_cambiar_el_solicitante(monkeypatch):
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: CATEGORIA_CLIENTE)
+    respuesta = client.post("/tickets", json=NUEVO, headers=cabecera("soporte1"))
+    assert respuesta.status_code == 201
+    assert respuesta.json()["solicitante"] == "ana"
+
+
+def test_servicio_inexistente_es_404_aunque_no_haya_sesion(monkeypatch):
+    monkeypatch.setattr(repo_categorias, "obtener", lambda _id: None)
+    assert client.post("/tickets", json=NUEVO).status_code == 404

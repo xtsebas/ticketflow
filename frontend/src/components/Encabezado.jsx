@@ -70,9 +70,9 @@ export default function Encabezado({ path }) {
               Soporte
             </button>
           </div>
-          {s.esAgente ? (
-            <strong title="Sesión de soporte">{s.nombreAgente}</strong>
-          ) : (
+          {s.esAgente && <strong title="Sesión de soporte">{s.nombreAgente}</strong>}
+          {s.esCliente && <strong title="Sesión de cliente">{s.nombre}</strong>}
+          {!s.esAgente && !s.esCliente && (
             <label className="nombre-sesion" title="Tu nombre o usuario">
               <span className="visually-hidden">Usuario</span>
               <input value={s.nombre} placeholder="tu usuario" onChange={(e) => s.setNombre(e.target.value)} />
