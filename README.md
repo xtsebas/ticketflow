@@ -95,6 +95,7 @@ cp .env.example .env
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (Project Settings → API). Solo backend, nunca en el frontend |
 | `CORS_ORIGINS` | Orígenes permitidos separados por comas. Por defecto `http://localhost:5173,http://localhost:3000` |
 | `AUTH_SECRET` | Secreto con el que se firman los tokens de sesión (soporte y clientes). Si se deja vacío se genera uno aleatorio al arrancar y las sesiones se cierran cada vez que el servidor se reinicia. Defínelo para que persistan |
+| `LOG_FILE` | Opcional. Ruta de un log NDJSON con una línea por petición (Fase 3). Vacía por defecto: sin ella la API no escribe logs. Detalle y variables relacionadas en `monitoring/README.md` |
 
 El `.env` se lee desde el directorio donde se ejecuta el comando, así que usa siempre `backend/` como directorio de trabajo. La app arranca sin `.env`; en ese caso `/health` reporta `"supabase": false`.
 
@@ -164,6 +165,17 @@ Los datos de demostración se cargan desde el contenedor del backend:
 
 ```
 docker compose exec backend python scripts/seed_demo.py --reset
+```
+
+## Monitoreo (Fase 3)
+
+La carpeta `monitoring/` agrega Elasticsearch, Kibana, Filebeat y Heartbeat para observar esta misma API: logs de cada petición, disponibilidad y un dashboard en Kibana. Tiene su propio `docker-compose.yml` y no cambia el flujo anterior. Guía de uso en [`monitoring/README.md`](monitoring/README.md) e informe técnico en [`docs/informe-fase3.md`](docs/informe-fase3.md).
+
+```
+cd monitoring
+cp .env.example .env
+docker compose up -d --build
+../scripts/verify-fase3.sh
 ```
 
 ## Pruebas
@@ -351,6 +363,7 @@ backend/
     main.py              aplicación FastAPI y CORS
     core/config.py       configuración con pydantic-settings
     core/errors.py       formato unificado de errores
+    core/access_log.py   middleware que escribe el log NDJSON de cada petición (Fase 3)
     domain/enums.py      valores fijos del dominio
     db/client.py         cliente Supabase perezoso
     repositories/        único acceso a datos
@@ -360,6 +373,7 @@ backend/
   db/                    schema.sql y seed.sql
   scripts/seed_demo.py   datos de demostración
   scripts/smoke_real.py  prueba de humo contra Supabase real
+  scripts/limpiar_trafico.py  lista o borra los tickets del generador de tráfico (Fase 3)
   tests/                 pruebas con repositorios simulados
   Dockerfile             imagen del backend
 frontend/
@@ -375,4 +389,7 @@ frontend/
     styles.css           estilos
 docker/                  Dockerfile del frontend
 docker-compose.yml       backend y frontend con Docker
+monitoring/              ELK, Heartbeat, generador de tráfico y dashboard (Fase 3)
+scripts/                 importar-dashboard.sh y verify-fase3.sh
+docs/informe-fase3.md    informe técnico de la Fase 3
 ```
