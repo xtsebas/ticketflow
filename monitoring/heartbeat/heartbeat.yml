@@ -1,0 +1,39 @@
+heartbeat.monitors:
+  - type: http
+    id: api-health
+    name: api-health
+    schedule: "@every 10s"
+    urls: ["http://api:8000/health"]
+    timeout: 5s
+    check.response.status: [200]
+    check.response.body:
+      positive:
+        - '"status":"ok"'
+
+  - type: http
+    id: api-categorias
+    name: api-categorias
+    schedule: "@every 10s"
+    urls: ["http://api:8000/categorias"]
+    timeout: 5s
+    check.response.status: [200]
+    check.response.body:
+      positive:
+        - qr_rechazado_en_puerta
+
+  - type: http
+    id: api-tickets-protegido
+    name: api-tickets-protegido
+    schedule: "@every 15s"
+    urls: ["http://api:8000/tickets"]
+    timeout: 5s
+    check.response.status: [401]
+
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+
+logging.level: info

@@ -1,0 +1,170 @@
+name: ticketflow-monitoring
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.24
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      cluster.name: ticketflow-monitoring
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' > /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    networks:
+      - monitoring
+
+  elasticsearch-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.24
+    entrypoint:
+      - curl
+      - -fsS
+      - -X
+      - PUT
+      - http://elasticsearch:9200/_index_template/ticketflow-api
+      - -H
+      - "Content-Type: application/json"
+      - --data-binary
+      - "@/setup/ticketflow-api-template.json"
+    volumes:
+      - ./elasticsearch/ticketflow-api-template.json:/setup/ticketflow-api-template.json:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - monitoring
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.19.24
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      TELEMETRY_OPTIN: "false"
+      TELEMETRY_BANNER: "false"
+      TELEMETRY_ALLOWCHANGINGOPTINSTATUS: "false"
+      XPACK_SECURITY_SHOWINSECURECLUSTERWARNING: "false"
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 30s
+    networks:
+      - monitoring
+
+  kibana-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.24
+    entrypoint:
+      - sh
+      - -c
+      - |
+        for intento in 1 2 3 4 5 6; do
+          curl -fsS -X POST 'http://kibana:5601/api/saved_objects/_import?overwrite=true' -H 'kbn-xsrf: true' --form file=@/setup/dashboard.ndjson | tee /dev/stderr | grep -q '"success":true' && exit 0
+          sleep 5
+        done
+        exit 1
+    volumes:
+      - ./kibana/dashboard.ndjson:/setup/dashboard.ndjson:ro
+    depends_on:
+      kibana:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - monitoring
+
+  api:
+    build:
+      context: ../backend
+    env_file:
+      - path: ../backend/.env
+        required: false
+    environment:
+      LOG_FILE: /var/log/ticketflow/api.log
+      SERVICE_NAME: ticketflow-api
+      FALLOS_PORCENTAJE: ${FALLOS_PORCENTAJE:-8}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/var/log/ticketflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.19.24
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/var/log/ticketflow:ro
+      - filebeat-data:/usr/share/filebeat/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      elasticsearch-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  heartbeat:
+    image: docker.elastic.co/beats/heartbeat:8.19.24
+    user: root
+    command: ["heartbeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./heartbeat/heartbeat.yml:/usr/share/heartbeat/heartbeat.yml:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  trafico:
+    image: python:3.12-slim
+    profiles:
+      - trafico
+    command: ["python", "-u", "/app/generar_trafico.py"]
+    environment:
+      TRAFICO_URL: http://api:8000
+      TRAFICO_RPS: ${TRAFICO_RPS:-3}
+      TRAFICO_DURACION: ${TRAFICO_DURACION:-0}
+      TRAFICO_PROPORCION_ERROR: ${TRAFICO_PROPORCION_ERROR:-0.2}
+      TRAFICO_MAX_CREACIONES: ${TRAFICO_MAX_CREACIONES:-300}
+      TRAFICO_SOLO_LECTURA: ${TRAFICO_SOLO_LECTURA:-}
+      TRAFICO_CONTRASENA_SOPORTE: ${TRAFICO_CONTRASENA_SOPORTE:-}
+      TRAFICO_CONTRASENA_CLIENTE: ${TRAFICO_CONTRASENA_CLIENTE:-}
+    volumes:
+      - ./trafico/generar_trafico.py:/app/generar_trafico.py:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+volumes:
+  esdata:
+  filebeat-data:
+
+networks:
+  monitoring:
