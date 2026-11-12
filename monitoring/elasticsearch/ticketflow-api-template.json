@@ -1,0 +1,40 @@
+{
+  "index_patterns": ["ticketflow-api-*"],
+  "priority": 500,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {"type": "date"},
+        "message": {"type": "text"},
+        "http": {
+          "properties": {
+            "request": {"properties": {"method": {"type": "keyword"}}},
+            "response": {"properties": {"status_code": {"type": "long"}}}
+          }
+        },
+        "event": {"properties": {"duration": {"type": "long"}}},
+        "url": {
+          "properties": {
+            "path": {"type": "keyword"},
+            "original": {"type": "keyword"}
+          }
+        },
+        "service": {"properties": {"name": {"type": "keyword"}}},
+        "log": {"properties": {"level": {"type": "keyword"}}},
+        "client": {"properties": {"ip": {"type": "ip"}}},
+        "trace": {"properties": {"id": {"type": "keyword"}}},
+        "user_agent": {"properties": {"original": {"type": "keyword"}}},
+        "error": {
+          "properties": {
+            "type": {"type": "keyword"},
+            "message": {"type": "text"}
+          }
+        }
+      }
+    }
+  }
+}
