@@ -16,6 +16,11 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     ]
     auth_secret: str = Field(default="", validate_default=True)
+    log_file: str = ""
+    log_max_bytes: int = Field(default=5_242_880, gt=0)
+    log_backups: int = Field(default=3, ge=0)
+    service_name: str = "ticketflow-api"
+    fallos_porcentaje: float = Field(default=0.0, ge=0, le=100)
 
     @field_validator("auth_secret")
     @classmethod
